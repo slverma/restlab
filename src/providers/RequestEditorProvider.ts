@@ -109,7 +109,8 @@ export class RequestEditorProvider {
               message.method,
               message.url,
               message.headers,
-              message.body
+              message.body,
+              message.formData
             );
             panel.webview.postMessage({
               type: "responseReceived",
@@ -136,7 +137,8 @@ export class RequestEditorProvider {
     method: string,
     url: string,
     headers: { key: string; value: string }[],
-    body?: string
+    body?: string,
+    formData?: { key: string; value: string; type: string; fileName?: string; fileData?: string }[]
   ): Promise<{
     status: number;
     statusText: string;
@@ -158,6 +160,37 @@ export class RequestEditorProvider {
             headerObj[h.key] = h.value;
           }
         });
+
+        let requestBody: Buffer | string | undefined = body;
+        
+        // Handle multipart form data with files
+        if (formData && formData.length > 0) {
+          const boundary = `----RESTLabBoundary${Date.now()}`;
+          headerObj["Content-Type"] = `multipart/form-data; boundary=${boundary}`;
+          
+          const parts: Buffer[] = [];
+          
+          for (const field of formData) {
+            if (!field.key.trim()) continue;
+            
+            if (field.type === "file" && field.fileData) {
+              // File field
+              const fileBuffer = Buffer.from(field.fileData, "base64");
+              const header = `--${boundary}\r\nContent-Disposition: form-data; name="${field.key}"; filename="${field.fileName || "file"}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+              parts.push(Buffer.from(header));
+              parts.push(fileBuffer);
+              parts.push(Buffer.from("\r\n"));
+            } else {
+              // Text field
+              const textPart = `--${boundary}\r\nContent-Disposition: form-data; name="${field.key}"\r\n\r\n${field.value}\r\n`;
+              parts.push(Buffer.from(textPart));
+            }
+          }
+          
+          // Add closing boundary
+          parts.push(Buffer.from(`--${boundary}--\r\n`));
+          requestBody = Buffer.concat(parts);
+        }
 
         const options: http.RequestOptions = {
           hostname: parsedUrl.hostname,
@@ -203,12 +236,16 @@ export class RequestEditorProvider {
         });
 
         // Send body for methods that support it
-        if (body && body.length > 0) {
+        if (requestBody && (typeof requestBody === "string" ? requestBody.length > 0 : requestBody.length > 0)) {
+          const bodyLength = typeof requestBody === "string" 
+            ? Buffer.byteLength(requestBody) 
+            : requestBody.length;
+          
           // Set Content-Length if not already set
           if (!headerObj["Content-Length"] && !headerObj["content-length"]) {
-            req.setHeader("Content-Length", Buffer.byteLength(body));
+            req.setHeader("Content-Length", bodyLength);
           }
-          req.write(body);
+          req.write(requestBody);
         }
 
         req.end();

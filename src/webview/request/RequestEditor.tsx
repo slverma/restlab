@@ -8,6 +8,9 @@ interface Header {
 interface FormDataItem {
   key: string;
   value: string;
+  type: "text" | "file";
+  fileName?: string;
+  fileData?: string; // base64 encoded
 }
 
 interface RequestConfig {
@@ -275,9 +278,18 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       : config.url;
 
     // Determine body: use formData if form content type, otherwise use raw body
-    const requestBody = isFormContentType(config.contentType)
-      ? formDataToBody(config.formData || [], config.contentType)
-      : config.body;
+    let requestBody = config.body;
+    let formDataWithFiles: FormDataItem[] | undefined;
+    
+    if (isFormContentType(config.contentType)) {
+      if (hasFileFields(config.formData)) {
+        // Send form data with files to extension for proper multipart handling
+        formDataWithFiles = config.formData;
+        requestBody = undefined;
+      } else {
+        requestBody = formDataToBody(config.formData || [], config.contentType);
+      }
+    }
 
     vscode.postMessage({
       type: "sendRequest",
@@ -285,6 +297,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       url: fullUrl,
       headers: allHeaders,
       body: requestBody,
+      formData: formDataWithFiles,
     });
 
     // Auto-save config
@@ -334,7 +347,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const handleAddFormData = () => {
     setConfig((prev) => ({
       ...prev,
-      formData: [...(prev.formData || []), { key: "", value: "" }],
+      formData: [...(prev.formData || []), { key: "", value: "", type: "text" }],
     }));
     setIsSaved(false);
   };
@@ -360,20 +373,75 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     setIsSaved(false);
   };
 
+  const handleToggleFormDataType = (index: number) => {
+    setConfig((prev) => {
+      const newFormData = [...(prev.formData || [])];
+      const currentType = newFormData[index].type || "text";
+      newFormData[index] = {
+        ...newFormData[index],
+        type: currentType === "text" ? "file" : "text",
+        value: "",
+        fileName: undefined,
+        fileData: undefined,
+      };
+      return { ...prev, formData: newFormData };
+    });
+    setIsSaved(false);
+  };
+
+  const handleFileSelect = (index: number, file: File | null) => {
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      setConfig((prev) => {
+        const newFormData = [...(prev.formData || [])];
+        newFormData[index] = {
+          ...newFormData[index],
+          fileName: file.name,
+          fileData: base64,
+          value: file.name,
+        };
+        return { ...prev, formData: newFormData };
+      });
+      setIsSaved(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Convert form data to body string for sending
-  const formDataToBody = (formData: FormDataItem[], contentType?: string): string => {
+  const formDataToBody = (
+    formData: FormDataItem[],
+    contentType?: string
+  ): string => {
     const items = formData.filter((item) => item.key.trim());
+    
+    // For URL encoded, only include text fields
     if (contentType === "application/x-www-form-urlencoded") {
       return items
-        .map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`)
+        .filter((item) => item.type !== "file")
+        .map(
+          (item) =>
+            `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`
+        )
         .join("&");
     }
-    // For multipart/form-data, we'll send as URL encoded for simplicity
-    // (true multipart requires boundary handling)
+    
+    // For multipart/form-data with files, we need to send via extension
+    // For now, send text fields as URL encoded
     return items
-      .map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`)
+      .filter((item) => item.type !== "file")
+      .map(
+        (item) =>
+          `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`
+      )
       .join("&");
   };
+
+  // Check if form has files
+  const hasFileFields = (formData?: FormDataItem[]) =>
+    (formData || []).some((item) => item.type === "file" && item.fileData);
 
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return "status-success";
@@ -655,7 +723,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                   </div>
 
                   {(config.formData || []).length === 0 ? (
-                    <p className="empty-hint">No form fields. Click "Add Field" to add one.</p>
+                    <p className="empty-hint">
+                      No form fields. Click "Add Field" to add one.
+                    </p>
                   ) : (
                     (config.formData || []).map((item, index) => (
                       <div key={index} className="form-data-row">
@@ -668,15 +738,58 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                           placeholder="Field name"
                           className="form-data-key"
                         />
-                        <input
-                          type="text"
-                          value={item.value}
-                          onChange={(e) =>
-                            handleUpdateFormData(index, "value", e.target.value)
-                          }
-                          placeholder="Value"
-                          className="form-data-value"
-                        />
+                        
+                        {config.contentType === "multipart/form-data" && (
+                          <button
+                            className={`type-toggle ${item.type === "file" ? "file-type" : "text-type"}`}
+                            onClick={() => handleToggleFormDataType(index)}
+                            title={item.type === "file" ? "Switch to text" : "Switch to file"}
+                          >
+                            {item.type === "file" ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="17" y1="10" x2="3" y2="10" />
+                                <line x1="21" y1="6" x2="3" y2="6" />
+                                <line x1="21" y1="14" x2="3" y2="14" />
+                                <line x1="17" y1="18" x2="3" y2="18" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                        
+                        {item.type === "file" ? (
+                          <div className="file-input-wrapper">
+                            <input
+                              type="file"
+                              id={`file-input-${index}`}
+                              className="file-input-hidden"
+                              onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                            />
+                            <label htmlFor={`file-input-${index}`} className="file-input-label">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                              </svg>
+                              {item.fileName || "Choose file"}
+                            </label>
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            value={item.value}
+                            onChange={(e) =>
+                              handleUpdateFormData(index, "value", e.target.value)
+                            }
+                            placeholder="Value"
+                            className="form-data-value"
+                          />
+                        )}
+                        
                         <button
                           className="remove-btn"
                           onClick={() => handleRemoveFormData(index)}
@@ -695,6 +808,12 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                         </button>
                       </div>
                     ))
+                  )}
+                  
+                  {hasFileFields(config.formData) && (
+                    <p className="file-warning">
+                      ⚠️ File uploads require multipart/form-data. Files will be sent as base64 encoded.
+                    </p>
                   )}
                 </div>
               ) : (
