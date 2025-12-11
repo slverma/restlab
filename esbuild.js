@@ -44,17 +44,34 @@ const editorConfig = {
   },
 };
 
+// Request webview build config
+const requestConfig = {
+  entryPoints: ["./src/webview/request/index.tsx"],
+  bundle: true,
+  outfile: "./dist/request/index.js",
+  format: "iife",
+  platform: "browser",
+  sourcemap: true,
+  loader: {
+    ".tsx": "tsx",
+    ".ts": "ts",
+    ".css": "css",
+  },
+};
+
 async function build() {
   try {
     if (isWatch) {
       const extCtx = await esbuild.context(extensionConfig);
       const sidebarCtx = await esbuild.context(sidebarConfig);
       const editorCtx = await esbuild.context(editorConfig);
+      const requestCtx = await esbuild.context(requestConfig);
 
       await Promise.all([
         extCtx.watch(),
         sidebarCtx.watch(),
         editorCtx.watch(),
+        requestCtx.watch(),
       ]);
 
       console.log("Watching for changes...");
@@ -63,6 +80,7 @@ async function build() {
         esbuild.build(extensionConfig),
         esbuild.build(sidebarConfig),
         esbuild.build(editorConfig),
+        esbuild.build(requestConfig),
       ]);
       console.log("Build complete!");
     }

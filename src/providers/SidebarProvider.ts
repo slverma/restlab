@@ -1,10 +1,18 @@
 import * as vscode from "vscode";
 import { getNonce } from "../utils/getNonce";
 
+export interface Request {
+  id: string;
+  name: string;
+  folderId: string;
+  method: string;
+}
+
 export interface Folder {
   id: string;
   name: string;
   createdAt: number;
+  requests?: Request[];
 }
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
@@ -61,6 +69,26 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case "getFolders":
           this._sendFoldersToWebview();
           break;
+        case "createRequest":
+          const requestName = await vscode.window.showInputBox({
+            prompt: "Enter request name",
+            placeHolder: "New Request",
+          });
+          if (requestName) {
+            this.addRequest(message.folderId, requestName);
+          }
+          break;
+        case "openRequest":
+          vscode.commands.executeCommand(
+            "restlab.openRequest",
+            message.requestId,
+            message.requestName,
+            message.folderId
+          );
+          break;
+        case "deleteRequest":
+          this.deleteRequest(message.folderId, message.requestId);
+          break;
       }
     });
 
@@ -73,6 +101,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       id: `folder-${Date.now()}`,
       name,
       createdAt: Date.now(),
+      requests: [],
     };
     this._folders.push(newFolder);
     this._saveFolders();
@@ -83,6 +112,52 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this._folders = this._folders.filter((f) => f.id !== folderId);
     this._saveFolders();
     this._sendFoldersToWebview();
+  }
+
+  public addRequest(folderId: string, name: string) {
+    const folder = this._folders.find((f) => f.id === folderId);
+    if (folder) {
+      if (!folder.requests) {
+        folder.requests = [];
+      }
+      const newRequest: Request = {
+        id: `request-${Date.now()}`,
+        name,
+        folderId,
+        method: "GET",
+      };
+      folder.requests.push(newRequest);
+      this._saveFolders();
+      this._sendFoldersToWebview();
+      // Automatically open the new request
+      vscode.commands.executeCommand(
+        "restlab.openRequest",
+        newRequest.id,
+        newRequest.name,
+        folderId
+      );
+    }
+  }
+
+  public deleteRequest(folderId: string, requestId: string) {
+    const folder = this._folders.find((f) => f.id === folderId);
+    if (folder && folder.requests) {
+      folder.requests = folder.requests.filter((r) => r.id !== requestId);
+      this._saveFolders();
+      this._sendFoldersToWebview();
+    }
+  }
+
+  public updateRequestMethod(folderId: string, requestId: string, method: string) {
+    const folder = this._folders.find((f) => f.id === folderId);
+    if (folder && folder.requests) {
+      const request = folder.requests.find((r) => r.id === requestId);
+      if (request) {
+        request.method = method;
+        this._saveFolders();
+        this._sendFoldersToWebview();
+      }
+    }
   }
 
   private _saveFolders() {

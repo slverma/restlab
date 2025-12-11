@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { SidebarProvider } from "./providers/SidebarProvider";
 import { FolderEditorProvider } from "./providers/FolderEditorProvider";
+import { RequestEditorProvider } from "./providers/RequestEditorProvider";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("RESTLab extension is now active!");
@@ -30,6 +31,9 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  // Register the request editor provider
+  const requestEditorProvider = new RequestEditorProvider(context);
+
   // Register command to create folder
   context.subscriptions.push(
     vscode.commands.registerCommand("restlab.createFolder", async () => {
@@ -50,6 +54,22 @@ export function activate(context: vscode.ExtensionContext) {
       "restlab.openFolderConfig",
       (folderId: string, folderName: string) => {
         FolderEditorProvider.openFolderEditor(context, folderId, folderName);
+      }
+    )
+  );
+
+  // Register command to open request editor
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "restlab.openRequest",
+      (requestId: string, requestName: string, folderId: string) => {
+        RequestEditorProvider.openRequestEditor(
+          context,
+          requestId,
+          requestName,
+          folderId,
+          sidebarProvider
+        );
       }
     )
   );
