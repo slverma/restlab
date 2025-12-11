@@ -36,6 +36,7 @@ interface ResponseData {
   headers: Record<string, string>;
   data: string;
   time: number;
+  size: number;
 }
 
 interface RequestEditorProps {
@@ -462,6 +463,26 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     }
   };
 
+  const getFileExtension = (headers: Record<string, string>) => {
+    const contentType = headers["content-type"] || "";
+    if (contentType.includes("json")) return "json";
+    if (contentType.includes("xml")) return "xml";
+    if (contentType.includes("html")) return "html";
+    if (contentType.includes("css")) return "css";
+    if (contentType.includes("javascript")) return "js";
+    if (contentType.includes("csv")) return "csv";
+    return "txt";
+  };
+
+  const formatSize = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB"];
+    const k = 1024;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const size = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
+    return `${size} ${units[i]}`;
+  };
+
   const getBodyPlaceholder = (contentType?: string) => {
     switch (contentType) {
       case "application/json":
@@ -479,11 +500,95 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     }
   };
 
+  const generateCurlCommand = (): string => {
+    // Build full URL
+    const fullUrl = folderConfig.baseUrl
+      ? `${folderConfig.baseUrl}${config.url}`
+      : config.url;
+
+    // Start with curl command
+    let curl = `curl -X ${config.method}`;
+
+    // Add URL (escaped)
+    curl += ` '${fullUrl.replace(/'/g, "'\\''")}'`;
+
+    // Combine headers
+    let allHeaders = [
+      ...(folderConfig.headers || []),
+      ...(config.headers || []),
+    ].filter((h) => h.key && h.value);
+
+    // Add Content-Type if set
+    if (config.contentType) {
+      const hasContentType = allHeaders.some(
+        (h) => h.key.toLowerCase() === "content-type"
+      );
+      if (!hasContentType) {
+        allHeaders = [
+          { key: "Content-Type", value: config.contentType },
+          ...allHeaders,
+        ];
+      }
+    }
+
+    // Add headers
+    allHeaders.forEach((h) => {
+      curl += ` \\
+  -H '${h.key}: ${h.value.replace(/'/g, "'\\''")}'`;
+    });
+
+    // Add body
+    const methodsWithBody = ["POST", "PUT", "PATCH"];
+    if (methodsWithBody.includes(config.method)) {
+      if (isFormContentType(config.contentType) && config.formData?.length) {
+        if (config.contentType === "multipart/form-data") {
+          // Form data fields
+          config.formData.forEach((item) => {
+            if (item.type === "file" && item.fileName) {
+              curl += ` \\
+  -F '${item.key}=@${item.fileName}'`;
+            } else if (item.key) {
+              curl += ` \\
+  -F '${item.key}=${item.value.replace(/'/g, "'\\''")}'`;
+            }
+          });
+        } else {
+          // URL encoded
+          const body = formDataToBody(config.formData, config.contentType);
+          if (body) {
+            curl += ` \\
+  -d '${body.replace(/'/g, "'\\''")}'`;
+          }
+        }
+      } else if (config.body) {
+        curl += ` \\
+  -d '${config.body.replace(/'/g, "'\\''")}'`;
+      }
+    }
+
+    return curl;
+  };
+
+  const handleCopyCurl = () => {
+    const curl = generateCurlCommand();
+    navigator.clipboard.writeText(curl);
+    vscode.postMessage({
+      type: "showInfo",
+      message: "cURL command copied to clipboard!",
+    });
+  };
+
   return (
     <div className="request-editor">
       <div className="request-header">
         <div className="header-info">
-          <h1>{config.name}</h1>
+          <input
+            type="text"
+            value={config.name}
+            onChange={(e) => handleConfigChange({ name: e.target.value })}
+            className="request-name-input"
+            placeholder="Request name"
+          />
           <span className="subtitle">HTTP Request</span>
         </div>
       </div>
@@ -565,6 +670,26 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             <polyline points="7 3 7 8 15 8" />
           </svg>
           {isSaved ? "Saved" : "Save"}
+        </button>
+        <button
+          className="curl-btn"
+          onClick={handleCopyCurl}
+          title="Copy as cURL command"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="16 18 22 12 16 6" />
+            <polyline points="8 6 2 12 8 18" />
+          </svg>
+          cURL
         </button>
       </div>
 
@@ -884,6 +1009,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                   {response.status} {response.statusText}
                 </span>
                 <span className="time-badge">{response.time}ms</span>
+                <span className="size-badge">{formatSize(response.size)}</span>
               </div>
             )}
           </div>
@@ -896,24 +1022,107 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           ) : (
             response && (
               <>
-                <div className="tabs">
-                  <button
-                    className={`tab ${responseTab === "body" ? "active" : ""}`}
-                    onClick={() => setResponseTab("body")}
-                  >
-                    Body
-                  </button>
-                  <button
-                    className={`tab ${
-                      responseTab === "headers" ? "active" : ""
-                    }`}
-                    onClick={() => setResponseTab("headers")}
-                  >
-                    Headers
-                    <span className="badge">
-                      {Object.keys(response.headers).length}
-                    </span>
-                  </button>
+                <div className="response-toolbar">
+                  <div className="tabs">
+                    <button
+                      className={`tab ${
+                        responseTab === "body" ? "active" : ""
+                      }`}
+                      onClick={() => setResponseTab("body")}
+                    >
+                      Body
+                    </button>
+                    <button
+                      className={`tab ${
+                        responseTab === "headers" ? "active" : ""
+                      }`}
+                      onClick={() => setResponseTab("headers")}
+                    >
+                      Headers
+                      <span className="badge">
+                        {Object.keys(response.headers).length}
+                      </span>
+                    </button>
+                  </div>
+                  <div className="response-actions">
+                    <button
+                      className="action-btn"
+                      title="Copy to clipboard"
+                      onClick={() => {
+                        const content =
+                          responseTab === "body"
+                            ? formatJson(response.data)
+                            : Object.entries(response.headers)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join("\n");
+                        navigator.clipboard.writeText(content);
+                        vscode.postMessage({
+                          type: "showInfo",
+                          message: "Copied to clipboard!",
+                        });
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <rect
+                          x="9"
+                          y="9"
+                          width="13"
+                          height="13"
+                          rx="2"
+                          ry="2"
+                        ></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                      Copy
+                    </button>
+                    <button
+                      className="action-btn"
+                      title="Download response"
+                      onClick={() => {
+                        const content =
+                          responseTab === "body"
+                            ? formatJson(response.data)
+                            : Object.entries(response.headers)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join("\n");
+                        const extension =
+                          responseTab === "body"
+                            ? getFileExtension(response.headers)
+                            : "txt";
+                        const filename = `response-${Date.now()}.${extension}`;
+                        vscode.postMessage({
+                          type: "downloadResponse",
+                          content,
+                          filename,
+                          mimeType:
+                            responseTab === "body"
+                              ? response.headers["content-type"] || "text/plain"
+                              : "text/plain",
+                        });
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                      Download
+                    </button>
+                  </div>
                 </div>
 
                 <div className="response-content">

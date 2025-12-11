@@ -164,6 +164,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  public updateRequestName(folderId: string, requestId: string, name: string) {
+    const folder = this._folders.find((f) => f.id === folderId);
+    if (folder && folder.requests) {
+      const request = folder.requests.find((r) => r.id === requestId);
+      if (request) {
+        request.name = name;
+        this._saveFolders();
+        this._sendFoldersToWebview();
+      }
+    }
+  }
+
   private _saveFolders() {
     this._context.globalState.update("restlab.folders", this._folders);
   }

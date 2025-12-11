@@ -7,11 +7,19 @@
     Roboto,
     sans-serif
   );
-  --restlab-accent: #10b981;
-  --restlab-accent-hover: #059669;
-  --restlab-accent-subtle: rgba(16, 185, 129, 0.1);
+  /* Primary gradient - Sky Blue to Indigo */
+  --restlab-gradient: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+  --restlab-gradient-hover: linear-gradient(90deg, #0ea5e9 0%, #4f46e5 100%);
+  --restlab-accent: #38bdf8;
+  --restlab-accent-hover: #0ea5e9;
+  --restlab-accent-subtle: rgba(56, 189, 248, 0.1);
+  --restlab-accent-glow: rgba(56, 189, 248, 0.4);
   --restlab-danger: #ef4444;
   --restlab-danger-subtle: rgba(239, 68, 68, 0.1);
+
+  /* Glass effect */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -42,16 +50,27 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 20px 32px;
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--glass-border);
   background: linear-gradient(
     180deg,
-    var(--vscode-editor-background) 0%,
-    var(--vscode-editor-background) 100%
+    rgba(56, 189, 248, 0.03) 0%,
+    transparent 100%
   );
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+}
+
+.editor-header::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 32px;
+  right: 32px;
+  height: 1px;
+  background: var(--restlab-gradient);
+  opacity: 0.3;
 }
 
 .header-content {
@@ -66,9 +85,10 @@ body {
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: var(--restlab-accent-subtle);
+  background: var(--restlab-gradient);
   border-radius: 12px;
-  color: var(--restlab-accent);
+  color: #ffffff;
+  box-shadow: 0 4px 16px var(--restlab-accent-glow);
 }
 
 .header-content .folder-icon {
@@ -78,7 +98,10 @@ body {
 .header-info h1 {
   font-size: 20px;
   font-weight: 700;
-  color: var(--vscode-foreground);
+  background: var(--restlab-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 2px;
 }
 
@@ -91,34 +114,53 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border: none;
+  padding: 10px 24px;
+  border: 1px solid var(--glass-border);
   border-radius: 8px;
-  background-color: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+  background: var(--glass-bg);
+  color: var(--vscode-foreground);
   cursor: not-allowed;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
   opacity: 0.5;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .save-btn.dirty {
-  background: linear-gradient(
-    135deg,
-    var(--restlab-accent) 0%,
-    var(--restlab-accent-hover) 100%
-  );
+  background: var(--restlab-gradient);
+  border: none;
   color: #ffffff;
   cursor: pointer;
   opacity: 1;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px var(--restlab-accent-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.save-btn.dirty::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.save-btn.dirty:hover::before {
+  left: 100%;
 }
 
 .save-btn.dirty:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--restlab-accent-glow);
 }
 
 .save-btn:focus {
@@ -153,10 +195,24 @@ body {
 /* Form Sections */
 .form-section {
   margin-bottom: 40px;
-  padding: 24px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 12px;
+  padding: 28px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  position: relative;
+}
+
+.form-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 28px;
+  height: 1px;
+  background: var(--restlab-gradient);
+  opacity: 0.3;
+  border-radius: 1px;
 }
 
 .form-section h2 {
@@ -165,7 +221,10 @@ body {
   gap: 10px;
   font-size: 14px;
   font-weight: 700;
-  color: var(--vscode-foreground);
+  background: var(--restlab-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -176,8 +235,9 @@ body {
   display: inline-block;
   width: 4px;
   height: 16px;
-  background: var(--restlab-accent);
+  background: var(--restlab-gradient);
   border-radius: 2px;
+  box-shadow: 0 0 8px var(--restlab-accent-glow);
 }
 
 .section-header {
