@@ -34,7 +34,15 @@ interface RequestEditorProps {
   folderId: string;
 }
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+const HTTP_METHODS = [
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "HEAD",
+  "OPTIONS",
+];
 
 const COMMON_HEADERS = [
   "Accept",
@@ -176,6 +184,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"headers" | "body">("headers");
   const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
+  const [isSaved, setIsSaved] = useState(true);
+
+  // Methods that support request body
+  const methodsWithBody = ["POST", "PUT", "PATCH"];
 
   useEffect(() => {
     vscode.postMessage({ type: "getConfig" });
@@ -186,6 +198,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         case "configLoaded":
           setConfig(message.config);
           setFolderConfig(message.folderConfig || {});
+          setIsSaved(true);
           break;
         case "responseReceived":
           setResponse(message.response);
@@ -223,6 +236,17 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
     // Auto-save config
     vscode.postMessage({ type: "saveConfig", config });
+    setIsSaved(true);
+  };
+
+  const handleSaveConfig = () => {
+    vscode.postMessage({ type: "saveConfig", config });
+    setIsSaved(true);
+  };
+
+  const handleConfigChange = (updates: Partial<RequestConfig>) => {
+    setConfig((prev) => ({ ...prev, ...updates }));
+    setIsSaved(false);
   };
 
   const handleAddHeader = () => {
@@ -230,6 +254,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       ...prev,
       headers: [...(prev.headers || []), { key: "", value: "" }],
     }));
+    setIsSaved(false);
   };
 
   const handleUpdateHeader = (
@@ -242,6 +267,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       newHeaders[index] = { ...newHeaders[index], [field]: value };
       return { ...prev, headers: newHeaders };
     });
+    setIsSaved(false);
   };
 
   const handleRemoveHeader = (index: number) => {
@@ -249,6 +275,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       ...prev,
       headers: (prev.headers || []).filter((_, i) => i !== index),
     }));
+    setIsSaved(false);
   };
 
   const getStatusColor = (status: number) => {
@@ -279,7 +306,13 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       <div className="request-bar">
         <select
           value={config.method}
-          onChange={(e) => setConfig((prev) => ({ ...prev, method: e.target.value }))}
+          onChange={(e) => {
+            handleConfigChange({ method: e.target.value });
+            // Switch to headers tab if body tab is active and new method doesn't support body
+            if (!methodsWithBody.includes(e.target.value) && activeTab === "body") {
+              setActiveTab("headers");
+            }
+          }}
           className={`method-select method-${config.method.toLowerCase()}`}
         >
           {HTTP_METHODS.map((method) => (
@@ -291,8 +324,12 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         <input
           type="text"
           value={config.url}
-          onChange={(e) => setConfig((prev) => ({ ...prev, url: e.target.value }))}
-          placeholder={folderConfig.baseUrl ? "/endpoint" : "https://api.example.com/endpoint"}
+          onChange={(e) => handleConfigChange({ url: e.target.value })}
+          placeholder={
+            folderConfig.baseUrl
+              ? "/endpoint"
+              : "https://api.example.com/endpoint"
+          }
           className="url-input"
         />
         <button
@@ -319,6 +356,28 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           )}
           Send
         </button>
+        <button
+          className={`save-btn ${isSaved ? 'saved' : 'unsaved'}`}
+          onClick={handleSaveConfig}
+          disabled={isSaved}
+          title={isSaved ? 'All changes saved' : 'Save changes'}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          {isSaved ? 'Saved' : 'Save'}
+        </button>
       </div>
 
       {folderConfig.baseUrl && (
@@ -338,12 +397,14 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
               <span className="badge">{config.headers?.length}</span>
             )}
           </button>
-          <button
-            className={`tab ${activeTab === "body" ? "active" : ""}`}
-            onClick={() => setActiveTab("body")}
-          >
-            Body
-          </button>
+          {methodsWithBody.includes(config.method) && (
+            <button
+              className={`tab ${activeTab === "body" ? "active" : ""}`}
+              onClick={() => setActiveTab("body")}
+            >
+              Body
+            </button>
+          )}
         </div>
 
         <div className="tab-content">
@@ -397,7 +458,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                     <div key={index} className="header-row">
                       <AutocompleteInput
                         value={header.key}
-                        onChange={(value) => handleUpdateHeader(index, "key", value)}
+                        onChange={(value) =>
+                          handleUpdateHeader(index, "key", value)
+                        }
                         placeholder="Header name"
                         suggestions={COMMON_HEADERS}
                         className="header-key"
@@ -434,13 +497,11 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             </div>
           )}
 
-          {activeTab === "body" && (
+          {activeTab === "body" && methodsWithBody.includes(config.method) && (
             <div className="body-section">
               <textarea
                 value={config.body || ""}
-                onChange={(e) =>
-                  setConfig((prev) => ({ ...prev, body: e.target.value }))
-                }
+                onChange={(e) => handleConfigChange({ body: e.target.value })}
                 placeholder="Request body (JSON, XML, text...)"
                 className="body-editor"
               />
@@ -455,7 +516,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             <h2>Response</h2>
             {response && (
               <div className="response-meta">
-                <span className={`status-badge ${getStatusColor(response.status)}`}>
+                <span
+                  className={`status-badge ${getStatusColor(response.status)}`}
+                >
                   {response.status} {response.statusText}
                 </span>
                 <span className="time-badge">{response.time}ms</span>
@@ -479,7 +542,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                     Body
                   </button>
                   <button
-                    className={`tab ${responseTab === "headers" ? "active" : ""}`}
+                    className={`tab ${
+                      responseTab === "headers" ? "active" : ""
+                    }`}
                     onClick={() => setResponseTab("headers")}
                   >
                     Headers
@@ -491,7 +556,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
                 <div className="response-content">
                   {responseTab === "body" && (
-                    <pre className="response-body">{formatJson(response.data)}</pre>
+                    <pre className="response-body">
+                      {formatJson(response.data)}
+                    </pre>
                   )}
                   {responseTab === "headers" && (
                     <div className="response-headers">

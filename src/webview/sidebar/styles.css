@@ -73,7 +73,11 @@ body {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;
-  background: linear-gradient(135deg, var(--restlab-accent) 0%, var(--restlab-accent-hover) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--restlab-accent) 0%,
+    var(--restlab-accent-hover) 100%
+  );
   color: #ffffff;
   cursor: pointer;
   font-size: 12px;
