@@ -105,7 +105,11 @@ body {
 }
 
 .save-btn.dirty {
-  background: linear-gradient(135deg, var(--restlab-accent) 0%, var(--restlab-accent-hover) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--restlab-accent) 0%,
+    var(--restlab-accent-hover) 100%
+  );
   color: #ffffff;
   cursor: pointer;
   opacity: 1;
@@ -378,4 +382,100 @@ body {
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
+}
+
+/* Field hint */
+.field-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Empty message enhanced */
+.empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+  padding: 32px;
+  text-align: center;
+  background-color: var(--vscode-editor-background);
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 8px;
+}
+
+.empty-message .empty-icon {
+  opacity: 0.4;
+  margin-bottom: 4px;
+}
+
+.empty-message p {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  margin: 0;
+}
+
+.empty-message span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Autocomplete */
+.autocomplete-container {
+  position: relative;
+  flex: 0.8;
+}
+
+.autocomplete-container input {
+  width: 100%;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(
+    --vscode-dropdown-background,
+    var(--vscode-editor-background)
+  );
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 3px;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.autocomplete-item.active {
+  background-color: var(--restlab-accent-subtle);
+  color: var(--restlab-accent);
 }

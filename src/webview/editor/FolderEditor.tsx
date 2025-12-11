@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface Header {
   key: string;
@@ -8,7 +8,6 @@ interface Header {
 interface FolderConfig {
   id: string;
   name: string;
-  description?: string;
   baseUrl?: string;
   headers?: Header[];
 }
@@ -18,6 +17,36 @@ interface FolderEditorProps {
   folderName: string;
 }
 
+// Common HTTP headers for autocomplete
+const COMMON_HEADERS = [
+  "Accept",
+  "Accept-Charset",
+  "Accept-Encoding",
+  "Accept-Language",
+  "Authorization",
+  "Cache-Control",
+  "Content-Type",
+  "Content-Length",
+  "Content-Encoding",
+  "Cookie",
+  "Host",
+  "If-Match",
+  "If-Modified-Since",
+  "If-None-Match",
+  "Origin",
+  "Pragma",
+  "Referer",
+  "User-Agent",
+  "X-Api-Key",
+  "X-Auth-Token",
+  "X-Correlation-ID",
+  "X-Forwarded-For",
+  "X-Forwarded-Host",
+  "X-Forwarded-Proto",
+  "X-Request-ID",
+  "X-Requested-With",
+];
+
 declare function acquireVsCodeApi(): {
   postMessage: (message: unknown) => void;
   getState: () => unknown;
@@ -26,6 +55,114 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 
+interface AutocompleteInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  suggestions: string[];
+  className?: string;
+}
+
+const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  suggestions,
+  className,
+}) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (value) {
+      const filtered = suggestions.filter((s) =>
+        s.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+    } else {
+      setFilteredSuggestions(suggestions);
+    }
+    setActiveSuggestionIndex(0);
+  }, [value, suggestions]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) =>
+        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === "Enter" && filteredSuggestions.length > 0) {
+      e.preventDefault();
+      onChange(filteredSuggestions[activeSuggestionIndex]);
+      setShowSuggestions(false);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelect = (suggestion: string) => {
+    onChange(suggestion);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="autocomplete-container">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setShowSuggestions(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="off"
+      />
+      {showSuggestions && filteredSuggestions.length > 0 && (
+        <div ref={suggestionsRef} className="autocomplete-dropdown">
+          {filteredSuggestions.map((suggestion, index) => (
+            <div
+              key={suggestion}
+              className={`autocomplete-item ${
+                index === activeSuggestionIndex ? "active" : ""
+              }`}
+              onClick={() => handleSelect(suggestion)}
+              onMouseEnter={() => setActiveSuggestionIndex(index)}
+            >
+              {suggestion}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const FolderEditor: React.FC<FolderEditorProps> = ({
   folderId,
   folderName,
@@ -33,7 +170,6 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
   const [config, setConfig] = useState<FolderConfig>({
     id: folderId,
     name: folderName,
-    description: "",
     baseUrl: "",
     headers: [],
   });
@@ -144,10 +280,8 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
 
       <div className="editor-content">
         <div className="form-section">
-          <h2>General Information</h2>
-
+          <h2>Collection Name</h2>
           <div className="form-group">
-            <label htmlFor="name">Collection Name</label>
             <input
               id="name"
               type="text"
@@ -156,24 +290,11 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
               placeholder="Enter collection name"
             />
           </div>
-
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={config.description || ""}
-              onChange={(e) => handleChange("description", e.target.value)}
-              placeholder="Describe what this collection is for..."
-              rows={3}
-            />
-          </div>
         </div>
 
         <div className="form-section">
-          <h2>API Configuration</h2>
-
+          <h2>Base URL</h2>
           <div className="form-group">
-            <label htmlFor="baseUrl">Base URL</label>
             <input
               id="baseUrl"
               type="text"
@@ -181,12 +302,15 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
               onChange={(e) => handleChange("baseUrl", e.target.value)}
               placeholder="https://api.example.com/v1"
             />
+            <p className="field-hint">
+              All requests in this collection will use this as the base URL
+            </p>
           </div>
         </div>
 
         <div className="form-section">
           <div className="section-header">
-            <h2>Default Headers</h2>
+            <h2>Headers</h2>
             <button className="add-btn" onClick={handleAddHeader}>
               <svg
                 width="14"
@@ -207,19 +331,34 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
 
           <div className="headers-list">
             {(config.headers || []).length === 0 ? (
-              <p className="empty-message">
-                No headers configured. Add headers that will be included in all requests.
-              </p>
+              <div className="empty-message">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="empty-icon"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <p>No headers configured</p>
+                <span>Headers added here will be included in all requests</span>
+              </div>
             ) : (
               (config.headers || []).map((header, index) => (
                 <div key={index} className="header-row">
-                  <input
-                    type="text"
+                  <AutocompleteInput
                     value={header.key}
-                    onChange={(e) =>
-                      handleUpdateHeader(index, "key", e.target.value)
-                    }
-                    placeholder="Header name (e.g., Authorization)"
+                    onChange={(value) => handleUpdateHeader(index, "key", value)}
+                    placeholder="Header name"
+                    suggestions={COMMON_HEADERS}
                     className="header-key"
                   />
                   <input
