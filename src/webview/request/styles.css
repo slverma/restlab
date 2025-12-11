@@ -378,12 +378,48 @@ body {
 
 /* Body Section */
 .body-section {
-  height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+}
+
+/* Content Type Selector */
+.content-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.content-type-selector label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+}
+
+.content-type-select {
+  flex: 1;
+  max-width: 350px;
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.content-type-select:focus {
+  outline: none;
+  border-color: var(--restlab-accent);
 }
 
 .body-editor {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 150px;
   padding: 12px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;

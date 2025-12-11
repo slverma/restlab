@@ -13,6 +13,7 @@ interface RequestConfig {
   url: string;
   headers?: Header[];
   body?: string;
+  contentType?: string;
 }
 
 interface FolderConfig {
@@ -60,6 +61,16 @@ const COMMON_HEADERS = [
   "X-Api-Key",
   "X-Auth-Token",
   "X-Request-ID",
+];
+
+const CONTENT_TYPES = [
+  { label: "None", value: "" },
+  { label: "JSON", value: "application/json" },
+  { label: "XML", value: "application/xml" },
+  { label: "Form URL Encoded", value: "application/x-www-form-urlencoded" },
+  { label: "Form Data", value: "multipart/form-data" },
+  { label: "Plain Text", value: "text/plain" },
+  { label: "HTML", value: "text/html" },
 ];
 
 declare function acquireVsCodeApi(): {
@@ -178,6 +189,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     url: "",
     headers: [],
     body: "",
+    contentType: "",
   });
   const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
   const [response, setResponse] = useState<ResponseData | null>(null);
@@ -228,10 +240,20 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     setResponse(null);
 
     // Combine folder headers with request headers
-    const allHeaders = [
+    let allHeaders = [
       ...(folderConfig.headers || []),
       ...(config.headers || []),
     ];
+
+    // Add Content-Type header if set and not already present
+    if (config.contentType) {
+      const hasContentType = allHeaders.some(
+        (h) => h.key.toLowerCase() === "content-type"
+      );
+      if (!hasContentType) {
+        allHeaders = [{ key: "Content-Type", value: config.contentType }, ...allHeaders];
+      }
+    }
 
     // Build full URL
     const fullUrl = folderConfig.baseUrl
@@ -303,6 +325,23 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       return JSON.stringify(JSON.parse(data), null, 2);
     } catch {
       return data;
+    }
+  };
+
+  const getBodyPlaceholder = (contentType?: string) => {
+    switch (contentType) {
+      case "application/json":
+        return '{\n  "key": "value"\n}';
+      case "application/xml":
+        return '<?xml version="1.0"?>\n<root>\n  <element>value</element>\n</root>';
+      case "application/x-www-form-urlencoded":
+        return "key1=value1&key2=value2";
+      case "text/plain":
+        return "Plain text content...";
+      case "text/html":
+        return "<html>\n  <body>Content</body>\n</html>";
+      default:
+        return "Request body...";
     }
   };
 
@@ -514,10 +553,24 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
           {activeTab === "body" && methodsWithBody.includes(config.method) && (
             <div className="body-section">
+              <div className="content-type-selector">
+                <label>Content Type:</label>
+                <select
+                  value={config.contentType || ""}
+                  onChange={(e) => handleConfigChange({ contentType: e.target.value })}
+                  className="content-type-select"
+                >
+                  {CONTENT_TYPES.map((ct) => (
+                    <option key={ct.value} value={ct.value}>
+                      {ct.label}{ct.value ? ` (${ct.value})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <textarea
                 value={config.body || ""}
                 onChange={(e) => handleConfigChange({ body: e.target.value })}
-                placeholder="Request body (JSON, XML, text...)"
+                placeholder={getBodyPlaceholder(config.contentType)}
                 className="body-editor"
               />
             </div>
