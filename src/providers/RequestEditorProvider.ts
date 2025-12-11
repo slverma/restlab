@@ -74,7 +74,7 @@ export class RequestEditorProvider {
             baseUrl?: string;
             headers?: { key: string; value: string }[];
           }>(`restlab.folder.${folderId}`);
-          
+
           panel.webview.postMessage({
             type: "configLoaded",
             config: savedRequest || {
@@ -202,10 +202,12 @@ export class RequestEditorProvider {
           reject(new Error("Request timeout"));
         });
 
-        if (
-          body &&
-          (method === "POST" || method === "PUT" || method === "PATCH")
-        ) {
+        // Send body for methods that support it
+        if (body && body.length > 0) {
+          // Set Content-Length if not already set
+          if (!headerObj["Content-Length"] && !headerObj["content-length"]) {
+            req.setHeader("Content-Length", Buffer.byteLength(body));
+          }
           req.write(body);
         }
 

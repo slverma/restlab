@@ -216,7 +216,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
     window.addEventListener("message", handleMessage);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+
     return () => {
       window.removeEventListener("message", handleMessage);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
