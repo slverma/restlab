@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import * as https from "https";
-import * as http from "http";
+import axios, { AxiosRequestConfig } from "axios";
+import FormData from "form-data";
 import { getNonce } from "../utils/getNonce";
 import { SidebarProvider } from "./SidebarProvider";
 
@@ -138,7 +138,13 @@ export class RequestEditorProvider {
     url: string,
     headers: { key: string; value: string }[],
     body?: string,
-    formData?: { key: string; value: string; type: string; fileName?: string; fileData?: string }[]
+    formData?: {
+      key: string;
+      value: string;
+      type: string;
+      fileName?: string;
+      fileData?: string;
+    }[]
   ): Promise<{
     status: number;
     statusText: string;
@@ -146,113 +152,75 @@ export class RequestEditorProvider {
     data: string;
     time: number;
   }> {
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
+    const startTime = Date.now();
 
-      try {
-        const parsedUrl = new URL(url);
-        const isHttps = parsedUrl.protocol === "https:";
-        const httpModule = isHttps ? https : http;
+    try {
+      // Build headers object
+      const headerObj: Record<string, string> = {};
+      headers.forEach((h) => {
+        if (h.key && h.value) {
+          headerObj[h.key] = h.value;
+        }
+      });
 
-        const headerObj: Record<string, string> = {};
-        headers.forEach((h) => {
-          if (h.key && h.value) {
-            headerObj[h.key] = h.value;
+      let requestData: string | FormData | undefined = body;
+
+      // Handle multipart form data with files
+      if (formData && formData.length > 0) {
+        const form = new FormData();
+
+        for (const field of formData) {
+          if (!field.key.trim()) continue;
+
+          if (field.type === "file" && field.fileData) {
+            // File field - convert base64 to buffer
+            const fileBuffer = Buffer.from(field.fileData, "base64");
+            form.append(field.key, fileBuffer, {
+              filename: field.fileName || "file",
+              contentType: "application/octet-stream",
+            });
+          } else {
+            // Text field
+            form.append(field.key, field.value);
           }
-        });
-
-        let requestBody: Buffer | string | undefined = body;
-        
-        // Handle multipart form data with files
-        if (formData && formData.length > 0) {
-          const boundary = `----RESTLabBoundary${Date.now()}`;
-          headerObj["Content-Type"] = `multipart/form-data; boundary=${boundary}`;
-          
-          const parts: Buffer[] = [];
-          
-          for (const field of formData) {
-            if (!field.key.trim()) continue;
-            
-            if (field.type === "file" && field.fileData) {
-              // File field
-              const fileBuffer = Buffer.from(field.fileData, "base64");
-              const header = `--${boundary}\r\nContent-Disposition: form-data; name="${field.key}"; filename="${field.fileName || "file"}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
-              parts.push(Buffer.from(header));
-              parts.push(fileBuffer);
-              parts.push(Buffer.from("\r\n"));
-            } else {
-              // Text field
-              const textPart = `--${boundary}\r\nContent-Disposition: form-data; name="${field.key}"\r\n\r\n${field.value}\r\n`;
-              parts.push(Buffer.from(textPart));
-            }
-          }
-          
-          // Add closing boundary
-          parts.push(Buffer.from(`--${boundary}--\r\n`));
-          requestBody = Buffer.concat(parts);
         }
 
-        const options: http.RequestOptions = {
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || (isHttps ? 443 : 80),
-          path: parsedUrl.pathname + parsedUrl.search,
-          method: method,
-          headers: headerObj,
-        };
-
-        const req = httpModule.request(options, (res) => {
-          let data = "";
-
-          res.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          res.on("end", () => {
-            const endTime = Date.now();
-            const responseHeaders: Record<string, string> = {};
-            Object.entries(res.headers).forEach(([key, value]) => {
-              responseHeaders[key] = Array.isArray(value)
-                ? value.join(", ")
-                : value || "";
-            });
-
-            resolve({
-              status: res.statusCode || 0,
-              statusText: res.statusMessage || "",
-              headers: responseHeaders,
-              data,
-              time: endTime - startTime,
-            });
-          });
-        });
-
-        req.on("error", (error) => {
-          reject(error);
-        });
-
-        req.setTimeout(30000, () => {
-          req.destroy();
-          reject(new Error("Request timeout"));
-        });
-
-        // Send body for methods that support it
-        if (requestBody && (typeof requestBody === "string" ? requestBody.length > 0 : requestBody.length > 0)) {
-          const bodyLength = typeof requestBody === "string" 
-            ? Buffer.byteLength(requestBody) 
-            : requestBody.length;
-          
-          // Set Content-Length if not already set
-          if (!headerObj["Content-Length"] && !headerObj["content-length"]) {
-            req.setHeader("Content-Length", bodyLength);
-          }
-          req.write(requestBody);
-        }
-
-        req.end();
-      } catch (error) {
-        reject(error);
+        requestData = form;
+        // Merge form headers with existing headers
+        Object.assign(headerObj, form.getHeaders());
       }
-    });
+
+      const config: AxiosRequestConfig = {
+        method: method.toLowerCase() as any,
+        url,
+        headers: headerObj,
+        data: requestData,
+        timeout: 30000,
+        validateStatus: () => true, // Don't throw on any status code
+        transformResponse: [(data) => data], // Keep raw response
+      };
+
+      const response = await axios(config);
+      const endTime = Date.now();
+
+      // Convert headers to Record<string, string>
+      const responseHeaders: Record<string, string> = {};
+      Object.entries(response.headers).forEach(([key, value]) => {
+        responseHeaders[key] = Array.isArray(value)
+          ? value.join(", ")
+          : String(value || "");
+      });
+
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        data: typeof response.data === "string" ? response.data : JSON.stringify(response.data),
+        time: endTime - startTime,
+      };
+    } catch (error: any) {
+      throw new Error(error.message || "Request failed");
+    }
   }
 
   private _getHtmlForWebview(
