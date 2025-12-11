@@ -86,11 +86,21 @@ body {
   border-color: var(--restlab-accent);
 }
 
-.method-select.method-get { color: var(--method-get); }
-.method-select.method-post { color: var(--method-post); }
-.method-select.method-put { color: var(--method-put); }
-.method-select.method-patch { color: var(--method-patch); }
-.method-select.method-delete { color: var(--method-delete); }
+.method-select.method-get {
+  color: var(--method-get);
+}
+.method-select.method-post {
+  color: var(--method-post);
+}
+.method-select.method-put {
+  color: var(--method-put);
+}
+.method-select.method-patch {
+  color: var(--method-patch);
+}
+.method-select.method-delete {
+  color: var(--method-delete);
+}
 
 .url-input {
   flex: 1;
@@ -116,7 +126,11 @@ body {
   padding: 10px 20px;
   border: none;
   border-radius: 6px;
-  background: linear-gradient(135deg, var(--restlab-accent) 0%, var(--restlab-accent-hover) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--restlab-accent) 0%,
+    var(--restlab-accent-hover) 100%
+  );
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
@@ -132,6 +146,51 @@ body {
 .send-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* Save Button */
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+  transform: translateY(-1px);
+}
+
+.save-btn.unsaved {
+  border-color: var(--restlab-accent);
+  background-color: var(--restlab-accent-subtle);
+  color: var(--restlab-accent);
+}
+
+.save-btn.unsaved:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    var(--restlab-accent) 0%,
+    var(--restlab-accent-hover) 100%
+  );
+  color: #ffffff;
+}
+
+.save-btn.saved {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.save-btn:disabled {
+  cursor: default;
 }
 
 .base-url-hint {
@@ -503,7 +562,10 @@ body {
   margin-top: 4px;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+  background: var(
+    --vscode-dropdown-background,
+    var(--vscode-editor-background)
+  );
   border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

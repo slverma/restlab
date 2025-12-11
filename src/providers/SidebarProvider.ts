@@ -148,7 +148,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public updateRequestMethod(folderId: string, requestId: string, method: string) {
+  public updateRequestMethod(
+    folderId: string,
+    requestId: string,
+    method: string
+  ) {
     const folder = this._folders.find((f) => f.id === folderId);
     if (folder && folder.requests) {
       const request = folder.requests.find((r) => r.id === requestId);

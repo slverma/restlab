@@ -202,7 +202,10 @@ export class RequestEditorProvider {
           reject(new Error("Request timeout"));
         });
 
-        if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
+        if (
+          body &&
+          (method === "POST" || method === "PUT" || method === "PATCH")
+        ) {
           req.write(body);
         }
 
