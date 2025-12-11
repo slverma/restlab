@@ -62,19 +62,19 @@ export class RequestEditorProvider {
       folderId
     );
 
-    // Load saved config and folder config for base URL and headers
-    const savedRequest = context.globalState.get<RequestConfig>(
-      `restlab.request.${requestId}`
-    );
-    const folderConfig = context.globalState.get<{
-      baseUrl?: string;
-      headers?: { key: string; value: string }[];
-    }>(`restlab.folder.${folderId}`);
-
     // Handle messages from webview
     panel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
         case "getConfig":
+          // Always read fresh config from globalState to get latest folder settings
+          const savedRequest = context.globalState.get<RequestConfig>(
+            `restlab.request.${requestId}`
+          );
+          const folderConfig = context.globalState.get<{
+            baseUrl?: string;
+            headers?: { key: string; value: string }[];
+          }>(`restlab.folder.${folderId}`);
+          
           panel.webview.postMessage({
             type: "configLoaded",
             config: savedRequest || {
