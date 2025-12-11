@@ -480,6 +480,84 @@ body {
   border-color: var(--restlab-accent);
 }
 
+/* Type Toggle Button */
+.type-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.type-toggle:hover {
+  border-color: var(--restlab-accent);
+  color: var(--restlab-accent);
+}
+
+.type-toggle.file-type {
+  background-color: var(--restlab-accent-subtle);
+  border-color: var(--restlab-accent);
+  color: var(--restlab-accent);
+}
+
+/* File Input */
+.file-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.file-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-input-label:hover {
+  border-color: var(--restlab-accent);
+  color: var(--restlab-accent);
+}
+
+.file-input-hidden:focus + .file-input-label {
+  border-color: var(--restlab-accent);
+  box-shadow: 0 0 0 2px var(--restlab-accent-subtle);
+}
+
+/* File Warning */
+.file-warning {
+  margin-top: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  background-color: rgba(204, 167, 0, 0.1);
+  border-radius: 6px;
+}
+
 /* Response Section */
 .response-section {
   margin-top: 24px;
