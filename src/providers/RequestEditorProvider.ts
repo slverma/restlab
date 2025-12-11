@@ -102,6 +102,16 @@ export class RequestEditorProvider {
               message.config.method
             );
           }
+          // Update name in sidebar if it changed
+          if (sidebarProvider && message.config.name) {
+            sidebarProvider.updateRequestName(
+              folderId,
+              requestId,
+              message.config.name
+            );
+            // Update panel title
+            panel.title = `🔗 ${message.config.name}`;
+          }
           break;
         case "sendRequest":
           try {
@@ -129,6 +139,30 @@ export class RequestEditorProvider {
             });
           }
           break;
+        case "showInfo":
+          vscode.window.showInformationMessage(message.message);
+          break;
+        case "downloadResponse":
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(message.filename),
+            filters: {
+              "All Files": ["*"],
+              JSON: ["json"],
+              XML: ["xml"],
+              Text: ["txt"],
+              HTML: ["html"],
+            },
+          });
+          if (uri) {
+            await vscode.workspace.fs.writeFile(
+              uri,
+              Buffer.from(message.content, "utf-8")
+            );
+            vscode.window.showInformationMessage(
+              `Response saved to ${uri.fsPath}`
+            );
+          }
+          break;
       }
     });
   }
@@ -151,19 +185,29 @@ export class RequestEditorProvider {
     headers: Record<string, string>;
     data: string;
     time: number;
+    size: number;
   }> {
     const startTime = Date.now();
 
     try {
-      // Build headers object
+      // Build headers object - exclude Content-Type if we're sending form data
       const headerObj: Record<string, string> = {};
       headers.forEach((h) => {
         if (h.key && h.value) {
+          // Skip Content-Type header if form data will be sent (form-data sets its own)
+          if (
+            formData &&
+            formData.length > 0 &&
+            h.key.toLowerCase() === "content-type"
+          ) {
+            return;
+          }
           headerObj[h.key] = h.value;
         }
       });
 
-      let requestData: string | FormData | undefined = body;
+      let requestData: any = body;
+      let formHeaders: Record<string, string> = {};
 
       // Handle multipart form data with files
       if (formData && formData.length > 0) {
@@ -178,26 +222,29 @@ export class RequestEditorProvider {
             form.append(field.key, fileBuffer, {
               filename: field.fileName || "file",
               contentType: "application/octet-stream",
+              knownLength: fileBuffer.length,
             });
           } else {
             // Text field
-            form.append(field.key, field.value);
+            form.append(field.key, field.value || "");
           }
         }
 
         requestData = form;
-        // Merge form headers with existing headers
-        Object.assign(headerObj, form.getHeaders());
+        // Get form headers including content-type with boundary
+        formHeaders = form.getHeaders();
       }
 
       const config: AxiosRequestConfig = {
         method: method.toLowerCase() as any,
         url,
-        headers: headerObj,
+        headers: { ...headerObj, ...formHeaders },
         data: requestData,
         timeout: 30000,
         validateStatus: () => true, // Don't throw on any status code
         transformResponse: [(data) => data], // Keep raw response
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       };
 
       const response = await axios(config);
@@ -211,12 +258,20 @@ export class RequestEditorProvider {
           : String(value || "");
       });
 
+      // Calculate response size
+      const responseData =
+        typeof response.data === "string"
+          ? response.data
+          : JSON.stringify(response.data);
+      const size = Buffer.byteLength(responseData, "utf8");
+
       return {
         status: response.status,
         statusText: response.statusText,
         headers: responseHeaders,
-        data: typeof response.data === "string" ? response.data : JSON.stringify(response.data),
+        data: responseData,
         time: endTime - startTime,
+        size,
       };
     } catch (error: any) {
       throw new Error(error.message || "Request failed");
