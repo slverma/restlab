@@ -1,12 +1,30 @@
 {
   "name": "restlab",
   "displayName": "RESTLab",
-  "description": "REST API testing and management tool",
+  "description": "A modern REST API client for VS Code - Test, debug, and manage your APIs with a beautiful interface",
+  "publisher": "slverma",
   "version": "0.0.1",
+  "icon": "resources/restlab-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vermaslal/rest-lab"
+  },
+  "license": "MIT",
+  "keywords": [
+    "rest",
+    "api",
+    "http",
+    "client",
+    "postman",
+    "testing",
+    "request",
+    "response"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
+    "Testing",
     "Other"
   ],
   "activationEvents": [],
