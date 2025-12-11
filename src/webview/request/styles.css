@@ -435,6 +435,51 @@ body {
   border-color: var(--restlab-accent);
 }
 
+/* Form Data Section */
+.form-data-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-data-section .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.form-data-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.form-data-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-data-key,
+.form-data-value {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.form-data-key:focus,
+.form-data-value:focus {
+  outline: none;
+  border-color: var(--restlab-accent);
+}
+
 /* Response Section */
 .response-section {
   margin-top: 24px;

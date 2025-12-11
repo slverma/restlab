@@ -5,6 +5,11 @@ interface Header {
   value: string;
 }
 
+interface FormDataItem {
+  key: string;
+  value: string;
+}
+
 interface RequestConfig {
   id: string;
   name: string;
@@ -14,6 +19,7 @@ interface RequestConfig {
   headers?: Header[];
   body?: string;
   contentType?: string;
+  formData?: FormDataItem[];
 }
 
 interface FolderConfig {
@@ -190,7 +196,12 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     headers: [],
     body: "",
     contentType: "",
+    formData: [],
   });
+
+  // Check if content type is form-based
+  const isFormContentType = (ct?: string) =>
+    ct === "application/x-www-form-urlencoded" || ct === "multipart/form-data";
   const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -251,7 +262,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         (h) => h.key.toLowerCase() === "content-type"
       );
       if (!hasContentType) {
-        allHeaders = [{ key: "Content-Type", value: config.contentType }, ...allHeaders];
+        allHeaders = [
+          { key: "Content-Type", value: config.contentType },
+          ...allHeaders,
+        ];
       }
     }
 
@@ -260,12 +274,17 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       ? `${folderConfig.baseUrl}${config.url}`
       : config.url;
 
+    // Determine body: use formData if form content type, otherwise use raw body
+    const requestBody = isFormContentType(config.contentType)
+      ? formDataToBody(config.formData || [], config.contentType)
+      : config.body;
+
     vscode.postMessage({
       type: "sendRequest",
       method: config.method,
       url: fullUrl,
       headers: allHeaders,
-      body: config.body,
+      body: requestBody,
     });
 
     // Auto-save config
@@ -310,6 +329,50 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       headers: (prev.headers || []).filter((_, i) => i !== index),
     }));
     setIsSaved(false);
+  };
+
+  const handleAddFormData = () => {
+    setConfig((prev) => ({
+      ...prev,
+      formData: [...(prev.formData || []), { key: "", value: "" }],
+    }));
+    setIsSaved(false);
+  };
+
+  const handleUpdateFormData = (
+    index: number,
+    field: "key" | "value",
+    value: string
+  ) => {
+    setConfig((prev) => {
+      const newFormData = [...(prev.formData || [])];
+      newFormData[index] = { ...newFormData[index], [field]: value };
+      return { ...prev, formData: newFormData };
+    });
+    setIsSaved(false);
+  };
+
+  const handleRemoveFormData = (index: number) => {
+    setConfig((prev) => ({
+      ...prev,
+      formData: (prev.formData || []).filter((_, i) => i !== index),
+    }));
+    setIsSaved(false);
+  };
+
+  // Convert form data to body string for sending
+  const formDataToBody = (formData: FormDataItem[], contentType?: string): string => {
+    const items = formData.filter((item) => item.key.trim());
+    if (contentType === "application/x-www-form-urlencoded") {
+      return items
+        .map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`)
+        .join("&");
+    }
+    // For multipart/form-data, we'll send as URL encoded for simplicity
+    // (true multipart requires boundary handling)
+    return items
+      .map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`)
+      .join("&");
   };
 
   const getStatusColor = (status: number) => {
@@ -557,22 +620,91 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                 <label>Content Type:</label>
                 <select
                   value={config.contentType || ""}
-                  onChange={(e) => handleConfigChange({ contentType: e.target.value })}
+                  onChange={(e) =>
+                    handleConfigChange({ contentType: e.target.value })
+                  }
                   className="content-type-select"
                 >
                   {CONTENT_TYPES.map((ct) => (
                     <option key={ct.value} value={ct.value}>
-                      {ct.label}{ct.value ? ` (${ct.value})` : ""}
+                      {ct.label}
+                      {ct.value ? ` (${ct.value})` : ""}
                     </option>
                   ))}
                 </select>
               </div>
-              <textarea
-                value={config.body || ""}
-                onChange={(e) => handleConfigChange({ body: e.target.value })}
-                placeholder={getBodyPlaceholder(config.contentType)}
-                className="body-editor"
-              />
+
+              {isFormContentType(config.contentType) ? (
+                <div className="form-data-section">
+                  <div className="section-header">
+                    <h3>Form Fields</h3>
+                    <button className="add-btn" onClick={handleAddFormData}>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Add Field
+                    </button>
+                  </div>
+
+                  {(config.formData || []).length === 0 ? (
+                    <p className="empty-hint">No form fields. Click "Add Field" to add one.</p>
+                  ) : (
+                    (config.formData || []).map((item, index) => (
+                      <div key={index} className="form-data-row">
+                        <input
+                          type="text"
+                          value={item.key}
+                          onChange={(e) =>
+                            handleUpdateFormData(index, "key", e.target.value)
+                          }
+                          placeholder="Field name"
+                          className="form-data-key"
+                        />
+                        <input
+                          type="text"
+                          value={item.value}
+                          onChange={(e) =>
+                            handleUpdateFormData(index, "value", e.target.value)
+                          }
+                          placeholder="Value"
+                          className="form-data-value"
+                        />
+                        <button
+                          className="remove-btn"
+                          onClick={() => handleRemoveFormData(index)}
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  value={config.body || ""}
+                  onChange={(e) => handleConfigChange({ body: e.target.value })}
+                  placeholder={getBodyPlaceholder(config.contentType)}
+                  className="body-editor"
+                />
+              )}
             </div>
           )}
         </div>
