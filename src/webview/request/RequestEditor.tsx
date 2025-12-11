@@ -280,7 +280,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     // Determine body: use formData if form content type, otherwise use raw body
     let requestBody = config.body;
     let formDataWithFiles: FormDataItem[] | undefined;
-    
+
     if (isFormContentType(config.contentType)) {
       if (hasFileFields(config.formData)) {
         // Send form data with files to extension for proper multipart handling
@@ -347,7 +347,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const handleAddFormData = () => {
     setConfig((prev) => ({
       ...prev,
-      formData: [...(prev.formData || []), { key: "", value: "", type: "text" }],
+      formData: [
+        ...(prev.formData || []),
+        { key: "", value: "", type: "text" },
+      ],
     }));
     setIsSaved(false);
   };
@@ -391,7 +394,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
   const handleFileSelect = (index: number, file: File | null) => {
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = (reader.result as string).split(",")[1];
@@ -416,7 +419,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     contentType?: string
   ): string => {
     const items = formData.filter((item) => item.key.trim());
-    
+
     // For URL encoded, only include text fields
     if (contentType === "application/x-www-form-urlencoded") {
       return items
@@ -427,7 +430,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         )
         .join("&");
     }
-    
+
     // For multipart/form-data with files, we need to send via extension
     // For now, send text fields as URL encoded
     return items
@@ -738,20 +741,40 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                           placeholder="Field name"
                           className="form-data-key"
                         />
-                        
+
                         {config.contentType === "multipart/form-data" && (
                           <button
-                            className={`type-toggle ${item.type === "file" ? "file-type" : "text-type"}`}
+                            className={`type-toggle ${
+                              item.type === "file" ? "file-type" : "text-type"
+                            }`}
                             onClick={() => handleToggleFormDataType(index)}
-                            title={item.type === "file" ? "Switch to text" : "Switch to file"}
+                            title={
+                              item.type === "file"
+                                ? "Switch to text"
+                                : "Switch to file"
+                            }
                           >
                             {item.type === "file" ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                 <polyline points="14 2 14 8 20 8" />
                               </svg>
                             ) : (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <line x1="17" y1="10" x2="3" y2="10" />
                                 <line x1="21" y1="6" x2="3" y2="6" />
                                 <line x1="21" y1="14" x2="3" y2="14" />
@@ -760,17 +783,32 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                             )}
                           </button>
                         )}
-                        
+
                         {item.type === "file" ? (
                           <div className="file-input-wrapper">
                             <input
                               type="file"
                               id={`file-input-${index}`}
                               className="file-input-hidden"
-                              onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                              onChange={(e) =>
+                                handleFileSelect(
+                                  index,
+                                  e.target.files?.[0] || null
+                                )
+                              }
                             />
-                            <label htmlFor={`file-input-${index}`} className="file-input-label">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <label
+                              htmlFor={`file-input-${index}`}
+                              className="file-input-label"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                 <polyline points="17 8 12 3 7 8" />
                                 <line x1="12" y1="3" x2="12" y2="15" />
@@ -783,13 +821,17 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                             type="text"
                             value={item.value}
                             onChange={(e) =>
-                              handleUpdateFormData(index, "value", e.target.value)
+                              handleUpdateFormData(
+                                index,
+                                "value",
+                                e.target.value
+                              )
                             }
                             placeholder="Value"
                             className="form-data-value"
                           />
                         )}
-                        
+
                         <button
                           className="remove-btn"
                           onClick={() => handleRemoveFormData(index)}
@@ -809,10 +851,11 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                       </div>
                     ))
                   )}
-                  
+
                   {hasFileFields(config.formData) && (
                     <p className="file-warning">
-                      ⚠️ File uploads require multipart/form-data. Files will be sent as base64 encoded.
+                      ⚠️ File uploads require multipart/form-data. Files will be
+                      sent as base64 encoded.
                     </p>
                   )}
                 </div>
