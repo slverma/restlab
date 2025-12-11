@@ -207,8 +207,20 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       }
     };
 
+    // Refresh folder config when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        vscode.postMessage({ type: "getConfig" });
+      }
+    };
+
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleSendRequest = () => {
@@ -309,7 +321,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           onChange={(e) => {
             handleConfigChange({ method: e.target.value });
             // Switch to headers tab if body tab is active and new method doesn't support body
-            if (!methodsWithBody.includes(e.target.value) && activeTab === "body") {
+            if (
+              !methodsWithBody.includes(e.target.value) &&
+              activeTab === "body"
+            ) {
               setActiveTab("headers");
             }
           }}
@@ -357,10 +372,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           Send
         </button>
         <button
-          className={`save-btn ${isSaved ? 'saved' : 'unsaved'}`}
+          className={`save-btn ${isSaved ? "saved" : "unsaved"}`}
           onClick={handleSaveConfig}
           disabled={isSaved}
-          title={isSaved ? 'All changes saved' : 'Save changes'}
+          title={isSaved ? "All changes saved" : "Save changes"}
         >
           <svg
             width="16"
@@ -376,7 +391,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
           </svg>
-          {isSaved ? 'Saved' : 'Save'}
+          {isSaved ? "Saved" : "Save"}
         </button>
       </div>
 
