@@ -163,6 +163,11 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   );
 };
 
+interface InheritedConfig {
+  baseUrl?: string;
+  headers?: Header[];
+}
+
 export const FolderEditor: React.FC<FolderEditorProps> = ({
   folderId,
   folderName,
@@ -173,6 +178,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
     baseUrl: "",
     headers: [],
   });
+  const [inheritedConfig, setInheritedConfig] = useState<InheritedConfig>({});
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
@@ -185,6 +191,9 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
       switch (message.type) {
         case "configLoaded":
           setConfig(message.config);
+          if (message.inheritedConfig) {
+            setInheritedConfig(message.inheritedConfig);
+          }
           break;
       }
     };
@@ -300,8 +309,25 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
               type="text"
               value={config.baseUrl || ""}
               onChange={(e) => handleChange("baseUrl", e.target.value)}
-              placeholder="https://api.example.com/v1"
+              placeholder={
+                inheritedConfig.baseUrl || "https://api.example.com/v1"
+              }
             />
+            {inheritedConfig.baseUrl && !config.baseUrl && (
+              <p className="field-hint inherited-hint">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                Inherited from parent: <code>{inheritedConfig.baseUrl}</code>
+              </p>
+            )}
             <p className="field-hint">
               All requests in this collection will use this as the base URL
             </p>
@@ -328,6 +354,36 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
               Add Header
             </button>
           </div>
+
+          {/* Show inherited headers */}
+          {inheritedConfig.headers && inheritedConfig.headers.length > 0 && (
+            <div className="inherited-headers">
+              <p className="inherited-label">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                Inherited from parent folder:
+              </p>
+              <div className="inherited-headers-list">
+                {inheritedConfig.headers.map((header, index) => (
+                  <div
+                    key={`inherited-${index}`}
+                    className="header-row inherited"
+                  >
+                    <span className="header-key">{header.key}</span>
+                    <span className="header-value">{header.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="headers-list">
             {(config.headers || []).length === 0 ? (
@@ -356,7 +412,9 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
                 <div key={index} className="header-row">
                   <AutocompleteInput
                     value={header.key}
-                    onChange={(value) => handleUpdateHeader(index, "key", value)}
+                    onChange={(value) =>
+                      handleUpdateHeader(index, "key", value)
+                    }
                     placeholder="Header name"
                     suggestions={COMMON_HEADERS}
                     className="header-key"
