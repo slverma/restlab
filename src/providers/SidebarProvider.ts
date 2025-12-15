@@ -12,7 +12,14 @@ export interface Folder {
   id: string;
   name: string;
   createdAt: number;
+  parentId?: string;
   requests?: Request[];
+  subfolders?: Folder[];
+}
+
+export interface FolderConfig {
+  baseUrl?: string;
+  headers?: { key: string; value: string }[];
 }
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
@@ -89,6 +96,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case "deleteRequest":
           this.deleteRequest(message.folderId, message.requestId);
           break;
+        case "createSubfolder":
+          const subfolderName = await vscode.window.showInputBox({
+            prompt: "Enter subfolder name",
+            placeHolder: "New Subfolder",
+          });
+          if (subfolderName) {
+            this.addSubfolder(message.parentFolderId, subfolderName);
+          }
+          break;
       }
     });
 
@@ -102,20 +118,155 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       name,
       createdAt: Date.now(),
       requests: [],
+      subfolders: [],
     };
     this._folders.push(newFolder);
     this._saveFolders();
     this._sendFoldersToWebview();
   }
 
-  public deleteFolder(folderId: string) {
-    this._folders = this._folders.filter((f) => f.id !== folderId);
+  public addSubfolder(parentFolderId: string, name: string) {
+    const newSubfolder: Folder = {
+      id: `folder-${Date.now()}`,
+      name,
+      createdAt: Date.now(),
+      parentId: parentFolderId,
+      requests: [],
+      subfolders: [],
+    };
+
+    // Find parent folder recursively and add subfolder
+    const addToParent = (folders: Folder[]): boolean => {
+      for (const folder of folders) {
+        if (folder.id === parentFolderId) {
+          if (!folder.subfolders) {
+            folder.subfolders = [];
+          }
+          folder.subfolders.push(newSubfolder);
+          return true;
+        }
+        if (folder.subfolders && addToParent(folder.subfolders)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    addToParent(this._folders);
     this._saveFolders();
     this._sendFoldersToWebview();
   }
 
+  public deleteFolder(folderId: string) {
+    // Delete from top-level folders
+    const topLevelIndex = this._folders.findIndex((f) => f.id === folderId);
+    if (topLevelIndex >= 0) {
+      this._folders.splice(topLevelIndex, 1);
+    } else {
+      // Delete from subfolders recursively
+      const deleteFromSubfolders = (folders: Folder[]): boolean => {
+        for (const folder of folders) {
+          if (folder.subfolders) {
+            const index = folder.subfolders.findIndex((f) => f.id === folderId);
+            if (index >= 0) {
+              folder.subfolders.splice(index, 1);
+              return true;
+            }
+            if (deleteFromSubfolders(folder.subfolders)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      deleteFromSubfolders(this._folders);
+    }
+    this._saveFolders();
+    this._sendFoldersToWebview();
+  }
+
+  // Helper to find a folder by ID recursively
+  private _findFolder(
+    folderId: string,
+    folders: Folder[] = this._folders
+  ): Folder | undefined {
+    for (const folder of folders) {
+      if (folder.id === folderId) {
+        return folder;
+      }
+      if (folder.subfolders) {
+        const found = this._findFolder(folderId, folder.subfolders);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
+
+  // Get inherited configuration by walking up the parent chain
+  // Child config takes priority over parent config
+  public getInheritedConfig(folderId: string): FolderConfig {
+    const folder = this._findFolder(folderId);
+    if (!folder) {
+      return {};
+    }
+
+    // Get current folder's config
+    const currentConfig =
+      this._context.globalState.get<FolderConfig>(
+        `restlab.folder.${folderId}`
+      ) || {};
+
+    // If no parent, return current config
+    if (!folder.parentId) {
+      return currentConfig;
+    }
+
+    // Get parent's inherited config (recursive)
+    const parentConfig = this.getInheritedConfig(folder.parentId);
+
+    // Merge configs - child takes priority
+    const mergedHeaders = [...(parentConfig.headers || [])];
+
+    // Add child headers, replacing any with same key from parent
+    if (currentConfig.headers) {
+      for (const childHeader of currentConfig.headers) {
+        const existingIndex = mergedHeaders.findIndex(
+          (h) => h.key.toLowerCase() === childHeader.key.toLowerCase()
+        );
+        if (existingIndex >= 0) {
+          mergedHeaders[existingIndex] = childHeader;
+        } else {
+          mergedHeaders.push(childHeader);
+        }
+      }
+    }
+
+    return {
+      baseUrl: currentConfig.baseUrl || parentConfig.baseUrl,
+      headers: mergedHeaders.length > 0 ? mergedHeaders : undefined,
+    };
+  }
+
+  // Get the parent folder chain for displaying inherited info
+  public getParentChain(folderId: string): Folder[] {
+    const chain: Folder[] = [];
+    let folder = this._findFolder(folderId);
+
+    while (folder && folder.parentId) {
+      const parent = this._findFolder(folder.parentId);
+      if (parent) {
+        chain.unshift(parent);
+        folder = parent;
+      } else {
+        break;
+      }
+    }
+
+    return chain;
+  }
+
   public addRequest(folderId: string, name: string) {
-    const folder = this._folders.find((f) => f.id === folderId);
+    const folder = this._findFolder(folderId);
     if (folder) {
       if (!folder.requests) {
         folder.requests = [];
@@ -140,7 +291,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   public deleteRequest(folderId: string, requestId: string) {
-    const folder = this._folders.find((f) => f.id === folderId);
+    const folder = this._findFolder(folderId);
     if (folder && folder.requests) {
       folder.requests = folder.requests.filter((r) => r.id !== requestId);
       this._saveFolders();
@@ -153,7 +304,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     requestId: string,
     method: string
   ) {
-    const folder = this._folders.find((f) => f.id === folderId);
+    const folder = this._findFolder(folderId);
     if (folder && folder.requests) {
       const request = folder.requests.find((r) => r.id === requestId);
       if (request) {
@@ -165,7 +316,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   public updateRequestName(folderId: string, requestId: string, name: string) {
-    const folder = this._folders.find((f) => f.id === folderId);
+    const folder = this._findFolder(folderId);
     if (folder && folder.requests) {
       const request = folder.requests.find((r) => r.id === requestId);
       if (request) {

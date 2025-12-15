@@ -53,7 +53,12 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "restlab.openFolderConfig",
       (folderId: string, folderName: string) => {
-        FolderEditorProvider.openFolderEditor(context, folderId, folderName);
+        FolderEditorProvider.openFolderEditor(
+          context,
+          folderId,
+          folderName,
+          sidebarProvider
+        );
       }
     )
   );

@@ -54,6 +54,24 @@ export class RequestEditorProvider {
       RequestEditorProvider.openPanels.delete(requestId);
     });
 
+    // Refresh folder config when panel becomes visible
+    panel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.visible) {
+        // Send updated folder config to webview
+        const folderConfig = sidebarProvider
+          ? sidebarProvider.getInheritedConfig(folderId)
+          : context.globalState.get<{
+              baseUrl?: string;
+              headers?: { key: string; value: string }[];
+            }>(`restlab.folder.${folderId}`) || {};
+
+        panel.webview.postMessage({
+          type: "folderConfigUpdated",
+          folderConfig: folderConfig,
+        });
+      }
+    });
+
     const provider = new RequestEditorProvider(context);
     panel.webview.html = provider._getHtmlForWebview(
       panel.webview,
@@ -70,10 +88,14 @@ export class RequestEditorProvider {
           const savedRequest = context.globalState.get<RequestConfig>(
             `restlab.request.${requestId}`
           );
-          const folderConfig = context.globalState.get<{
-            baseUrl?: string;
-            headers?: { key: string; value: string }[];
-          }>(`restlab.folder.${folderId}`);
+
+          // Get inherited config from sidebar provider (walks up parent chain)
+          const folderConfig = sidebarProvider
+            ? sidebarProvider.getInheritedConfig(folderId)
+            : context.globalState.get<{
+                baseUrl?: string;
+                headers?: { key: string; value: string }[];
+              }>(`restlab.folder.${folderId}`) || {};
 
           panel.webview.postMessage({
             type: "configLoaded",
@@ -86,7 +108,7 @@ export class RequestEditorProvider {
               headers: [],
               body: "",
             },
-            folderConfig: folderConfig || {},
+            folderConfig: folderConfig,
           });
           break;
         case "saveConfig":
