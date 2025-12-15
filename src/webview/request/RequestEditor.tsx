@@ -227,6 +227,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           setFolderConfig(message.folderConfig || {});
           setIsSaved(true);
           break;
+        case "folderConfigUpdated":
+          // Update only the folder config without resetting request config
+          setFolderConfig(message.folderConfig || {});
+          break;
         case "responseReceived":
           setResponse(message.response);
           setIsLoading(false);

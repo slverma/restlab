@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
 import { getNonce } from "../utils/getNonce";
+import {
+  SidebarProvider,
+  FolderConfig as SidebarFolderConfig,
+} from "./SidebarProvider";
 
 interface FolderConfig {
   id: string;
@@ -20,7 +24,8 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
   public static openFolderEditor(
     context: vscode.ExtensionContext,
     folderId: string,
-    folderName: string
+    folderName: string,
+    sidebarProvider?: SidebarProvider
   ) {
     // Check if panel already exists for this folder
     const existingPanel = FolderEditorProvider.openPanels.get(folderId);
@@ -66,9 +71,23 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
     panel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
         case "getConfig":
+          // Get inherited config from parent folders (without current folder's config)
+          let inheritedConfig: SidebarFolderConfig = {};
+          if (sidebarProvider) {
+            const parentChain = sidebarProvider.getParentChain(folderId);
+            if (parentChain.length > 0) {
+              // Get the last parent's inherited config
+              const lastParent = parentChain[parentChain.length - 1];
+              inheritedConfig = sidebarProvider.getInheritedConfig(
+                lastParent.id
+              );
+            }
+          }
+
           panel.webview.postMessage({
             type: "configLoaded",
             config: savedConfig || { id: folderId, name: folderName },
+            inheritedConfig: inheritedConfig,
           });
           break;
         case "saveConfig":
