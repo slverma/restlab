@@ -298,7 +298,65 @@ export class RequestEditorProvider {
         size,
       };
     } catch (error: any) {
-      throw new Error(error.message || "Request failed");
+      // Provide more descriptive error messages for common network errors
+      let errorMessage = "Request failed";
+      let errorCode = "";
+
+      if (error.code) {
+        errorCode = error.code;
+        switch (error.code) {
+          case "ENOTFOUND":
+            errorMessage = `DNS lookup failed: Could not resolve host "${
+              error.hostname || url
+            }". Check if the domain name is correct.`;
+            break;
+          case "ECONNREFUSED":
+            errorMessage = `Connection refused: The server at "${
+              error.address || url
+            }" is not accepting connections. Make sure the server is running.`;
+            break;
+          case "ECONNRESET":
+            errorMessage =
+              "Connection reset: The server closed the connection unexpectedly.";
+            break;
+          case "ETIMEDOUT":
+            errorMessage =
+              "Connection timed out: The server took too long to respond.";
+            break;
+          case "ECONNABORTED":
+            errorMessage = "Request aborted: The connection was aborted.";
+            break;
+          case "ENETUNREACH":
+            errorMessage =
+              "Network unreachable: Check your internet connection.";
+            break;
+          case "EHOSTUNREACH":
+            errorMessage = "Host unreachable: The server cannot be reached.";
+            break;
+          case "CERT_HAS_EXPIRED":
+          case "UNABLE_TO_VERIFY_LEAF_SIGNATURE":
+          case "SELF_SIGNED_CERT_IN_CHAIN":
+            errorMessage = `SSL/TLS Certificate Error: ${error.message}`;
+            break;
+          case "ERR_INVALID_URL":
+            errorMessage = "Invalid URL: Please check the URL format.";
+            break;
+          default:
+            errorMessage = error.message || `Network error: ${error.code}`;
+        }
+      } else if (error.message) {
+        if (error.message.includes("timeout")) {
+          errorMessage =
+            "Request timed out: The server took too long to respond.";
+          errorCode = "TIMEOUT";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      throw new Error(
+        errorCode ? `[${errorCode}] ${errorMessage}` : errorMessage
+      );
     }
   }
 
