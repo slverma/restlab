@@ -99,14 +99,16 @@ export class RequestEditorProvider {
 
           panel.webview.postMessage({
             type: "configLoaded",
-            config: savedRequest || {
+            config: {
               id: requestId,
               name: requestName,
               folderId,
-              method: "GET",
-              url: "",
-              headers: [],
-              body: "",
+              method: savedRequest?.method || "GET",
+              url: savedRequest?.url || "",
+              headers: savedRequest?.headers || [],
+              body: savedRequest?.body || "",
+              contentType: savedRequest?.contentType || "",
+              formData: savedRequest?.formData || [],
             },
             folderConfig: folderConfig,
           });

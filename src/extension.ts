@@ -78,6 +78,13 @@ export function activate(context: vscode.ExtensionContext) {
       }
     )
   );
+
+  // Register command to import collection
+  context.subscriptions.push(
+    vscode.commands.registerCommand("restlab.importCollection", async () => {
+      await sidebarProvider.importCollection();
+    })
+  );
 }
 
 export function deactivate() {}
