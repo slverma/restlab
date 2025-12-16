@@ -475,12 +475,58 @@ body {
 /* Request Content */
 .request-content {
   flex: 0 0 auto;
-  max-height: 280px;
   overflow-y: auto;
+  min-height: 100px;
 }
 
 .tab-content {
   padding: 8px 0;
+}
+
+/* Resize Handle */
+.resize-handle {
+  flex: 0 0 auto;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  position: relative;
+  user-select: none;
+  margin: 4px 0;
+}
+
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--glass-border);
+  transition: background 0.15s ease;
+}
+
+.resize-handle:hover::before,
+.resize-handle.active::before {
+  background: var(--restlab-gradient);
+}
+
+.resize-handle-bar {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--vscode-descriptionForeground);
+  opacity: 0.3;
+  transition: all 0.15s ease;
+  z-index: 1;
+}
+
+.resize-handle:hover .resize-handle-bar,
+.resize-handle.active .resize-handle-bar {
+  background: var(--restlab-gradient);
+  opacity: 1;
+  width: 64px;
 }
 
 /* Headers Section */
@@ -1111,4 +1157,161 @@ body {
 .autocomplete-item.active {
   background-color: var(--restlab-accent-subtle);
   color: var(--restlab-accent);
+}
+
+/* Error Display */
+.error-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  min-height: 200px;
+}
+
+.error-icon {
+  color: var(--restlab-danger);
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+
+.error-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--restlab-danger);
+  margin-bottom: 12px;
+}
+
+.error-message {
+  font-size: 14px;
+  color: var(--vscode-foreground);
+  max-width: 500px;
+  line-height: 1.6;
+  padding: 16px 20px;
+  background: var(--restlab-danger-subtle);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  word-break: break-word;
+}
+
+/* Button text spans for responsive hiding */
+.btn-text {
+  display: inline;
+}
+
+/* Responsive Styles */
+@media (max-width: 700px) {
+  .request-editor {
+    padding: 0 16px;
+  }
+
+  .request-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .method-select {
+    min-width: 90px;
+    padding: 10px 10px;
+    font-size: 12px;
+  }
+
+  .url-input {
+    flex: 1 1 100%;
+    order: -1;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .send-btn,
+  .save-btn,
+  .curl-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .send-btn .btn-text,
+  .save-btn .btn-text,
+  .curl-btn .btn-text {
+    display: none;
+  }
+
+  .send-btn,
+  .save-btn,
+  .curl-btn {
+    gap: 0;
+  }
+}
+
+@media (max-width: 500px) {
+  .request-editor {
+    padding: 0 12px;
+  }
+
+  .request-header {
+    padding: 12px 0;
+  }
+
+  .request-name-input {
+    font-size: 16px;
+    max-width: 100%;
+  }
+
+  .request-bar {
+    padding: 12px 0;
+    gap: 6px;
+  }
+
+  .method-select {
+    min-width: 80px;
+    padding: 8px 8px;
+  }
+
+  .url-input {
+    padding: 8px 10px;
+  }
+
+  .send-btn,
+  .save-btn,
+  .curl-btn {
+    padding: 8px 10px;
+  }
+
+  .response-meta {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .status-badge,
+  .time-badge,
+  .size-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .response-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .response-actions {
+    justify-content: flex-end;
+  }
+
+  .response-actions .action-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .error-display {
+    padding: 20px 12px;
+  }
+
+  .error-message {
+    padding: 12px 14px;
+    font-size: 12px;
+  }
 }

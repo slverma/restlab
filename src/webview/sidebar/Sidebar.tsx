@@ -71,6 +71,211 @@ const Tooltip: React.FC<{
   );
 };
 
+// Import Provider type for extensibility
+interface ImportProvider {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+}
+
+// RESTLab icon component
+const RESTLabIcon: React.FC = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <path d="M9 9h6M9 12h6M9 15h4" />
+  </svg>
+);
+
+const IMPORT_PROVIDERS: ImportProvider[] = [
+  {
+    id: "restlab",
+    name: "RESTLab",
+    icon: <RESTLabIcon />,
+  },
+  {
+    id: "postman",
+    name: "Postman",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M128 0C57.328 0 0 57.328 0 128s57.328 128 128 128 128-57.328 128-128S198.672 0 128 0zm0 233.6c-58.32 0-105.6-47.28-105.6-105.6S69.68 22.4 128 22.4 233.6 69.68 233.6 128 186.32 233.6 128 233.6z" />
+        <path d="M165.5 90.5l-50 50-15-15 50-50 15 15z" />
+        <circle cx="100" cy="156" r="12" />
+      </svg>
+    ),
+  },
+  {
+    id: "thunder-client",
+    name: "Thunder Client",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z" />
+      </svg>
+    ),
+  },
+];
+
+// Import Dropdown Component
+const ImportDropdown: React.FC<{
+  onSelect: (providerId: string) => void;
+}> = ({ onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="import-dropdown" ref={dropdownRef}>
+      <button
+        className="header-action-btn"
+        onClick={() => setIsOpen(!isOpen)}
+        title="Import Collection"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M14 1H3L2 2v11l1 1h4v-1H3V2h10v5h1V2l-1-1z" />
+          <path d="M11 8l-4 4 1 1 2.5-2.5V16h1v-5.5L14 13l1-1-4-4z" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="import-dropdown-menu">
+          <div className="import-dropdown-header">Import from</div>
+          {IMPORT_PROVIDERS.map((provider) => (
+            <button
+              key={provider.id}
+              className="import-dropdown-item"
+              onClick={() => {
+                onSelect(provider.id);
+                setIsOpen(false);
+              }}
+            >
+              <span className="import-dropdown-icon">{provider.icon}</span>
+              <span>{provider.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Export formats for extensibility
+const EXPORT_FORMATS = [
+  {
+    id: "restlab",
+    name: "RESTLab",
+    icon: <RESTLabIcon />,
+  },
+  {
+    id: "postman",
+    name: "Postman",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M128 0C57.328 0 0 57.328 0 128s57.328 128 128 128 128-57.328 128-128S198.672 0 128 0zm0 233.6c-58.32 0-105.6-47.28-105.6-105.6S69.68 22.4 128 22.4 233.6 69.68 233.6 128 186.32 233.6 128 233.6z" />
+        <path d="M165.5 90.5l-50 50-15-15 50-50 15 15z" />
+        <circle cx="100" cy="156" r="12" />
+      </svg>
+    ),
+  },
+  {
+    id: "thunder-client",
+    name: "Thunder Client",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z" />
+      </svg>
+    ),
+  },
+];
+
+// Export Dropdown Component for folder actions
+const ExportDropdown: React.FC<{
+  folderId: string;
+  onSelect: (folderId: string, format: string) => void;
+}> = ({ folderId, onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <div className="export-dropdown" ref={dropdownRef}>
+      <Tooltip text="Export Collection">
+        <button className="action-btn export-btn" onClick={handleClick}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <path d="M14 1H3L2 2v11l1 1h4v-1H3V2h10v5h1V2l-1-1z" />
+            <path d="M11 16l4-4-1-1-2.5 2.5V8h-1v5.5L8 11l-1 1 4 4z" />
+          </svg>
+        </button>
+      </Tooltip>
+      {isOpen && (
+        <div className="export-dropdown-menu">
+          <div className="export-dropdown-header">Export as</div>
+          {EXPORT_FORMATS.map((format) => (
+            <button
+              key={format.id}
+              className="export-dropdown-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(folderId, format.id);
+                setIsOpen(false);
+              }}
+            >
+              <span className="export-dropdown-icon">{format.icon}</span>
+              <span>{format.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Sidebar: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -95,6 +300,10 @@ export const Sidebar: React.FC = () => {
 
   const handleCreateFolder = () => {
     vscode.postMessage({ type: "createFolder" });
+  };
+
+  const handleImportCollection = (providerId: string) => {
+    vscode.postMessage({ type: "importCollection", provider: providerId });
   };
 
   const handleToggleFolder = (folderId: string) => {
@@ -153,6 +362,10 @@ export const Sidebar: React.FC = () => {
   ) => {
     e.stopPropagation();
     vscode.postMessage({ type: "deleteRequest", requestId, folderId });
+  };
+
+  const handleExportCollection = (folderId: string, format: string) => {
+    vscode.postMessage({ type: "exportCollection", folderId, format });
   };
 
   const getMethodColor = (method: string) => {
@@ -266,6 +479,10 @@ export const Sidebar: React.FC = () => {
               </svg>
             </button>
           </Tooltip>
+          <ExportDropdown
+            folderId={folder.id}
+            onSelect={handleExportCollection}
+          />
           <Tooltip text="Delete Collection">
             <button
               className="action-btn delete-btn"
@@ -357,17 +574,20 @@ export const Sidebar: React.FC = () => {
     <div className="sidebar">
       <div className="sidebar-header">
         <h2>RESTLab</h2>
-        <button
-          className="create-folder-btn"
-          onClick={handleCreateFolder}
-          title="Create Collection"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M14 6.5V14H2V2h4.5l1 2H14v2.5zm.5-2.5H8l-1-2H1.5l-.5.5v12l.5.5h13l.5-.5V4l-.5-.5z" />
-            <path d="M7 7H8V9H10V10H8V12H7V10H5V9H7V7Z" />
-          </svg>
-          <span>New Collection</span>
-        </button>
+        <div className="header-actions">
+          <button
+            className="create-folder-btn"
+            onClick={handleCreateFolder}
+            title="Create Collection"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M14 6.5V14H2V2h4.5l1 2H14v2.5zm.5-2.5H8l-1-2H1.5l-.5.5v12l.5.5h13l.5-.5V4l-.5-.5z" />
+              <path d="M7 7H8V9H10V10H8V12H7V10H5V9H7V7Z" />
+            </svg>
+            <span>New Collection</span>
+          </button>
+          <ImportDropdown onSelect={handleImportCollection} />
+        </div>
       </div>
 
       <div className="folder-list">

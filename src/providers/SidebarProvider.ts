@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
 import { getNonce } from "../utils/getNonce";
+import { parseImportedFile, ImportResult } from "../utils/importParser";
+import {
+  exportToPostman,
+  exportToThunderClient,
+  exportToRESTLab,
+} from "../utils/exportParser";
 
 export interface Request {
   id: string;
@@ -104,6 +110,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           if (subfolderName) {
             this.addSubfolder(message.parentFolderId, subfolderName);
           }
+          break;
+        case "importCollection":
+          await this._handleImportCollection(message.provider);
+          break;
+        case "exportCollection":
+          await this._handleExportCollection(message.folderId, message.format);
           break;
       }
     });
@@ -324,6 +336,138 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this._saveFolders();
         this._sendFoldersToWebview();
       }
+    }
+  }
+
+  private async _handleImportCollection(provider?: string) {
+    const providerName =
+      provider === "restlab"
+        ? "RESTLab"
+        : provider === "postman"
+        ? "Postman"
+        : provider === "thunder-client"
+        ? "Thunder Client"
+        : "Collection";
+
+    const fileUri = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      filters: {
+        "JSON files": ["json"],
+      },
+      title: `Import ${providerName} Collection`,
+    });
+
+    if (!fileUri || fileUri.length === 0) {
+      return;
+    }
+
+    try {
+      const fileContent = await vscode.workspace.fs.readFile(fileUri[0]);
+      const content = Buffer.from(fileContent).toString("utf-8");
+      const fileName = fileUri[0].fsPath.split("/").pop() || "import.json";
+
+      const importResult = parseImportedFile(content, fileName, provider);
+      await this._applyImportResult(importResult);
+
+      vscode.window.showInformationMessage(
+        `Successfully imported ${importResult.folders.length} collection(s) from ${providerName}`
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to import collection: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  private async _applyImportResult(importResult: ImportResult) {
+    // Add imported folders to the folders list
+    for (const folder of importResult.folders) {
+      this._folders.push(folder);
+    }
+
+    // Save folder configs
+    for (const [folderId, config] of importResult.folderConfigs) {
+      await this._context.globalState.update(
+        `restlab.folder.${folderId}`,
+        config
+      );
+    }
+
+    // Save request configs
+    for (const [requestId, request] of importResult.requests) {
+      await this._context.globalState.update(`restlab.request.${requestId}`, {
+        method: request.method || "GET",
+        url: request.url,
+        headers: request.headers || [],
+        body: request.body || "",
+        contentType: request.contentType || "json",
+      });
+    }
+
+    this._saveFolders();
+    this._sendFoldersToWebview();
+  }
+
+  public async importCollection(provider?: string) {
+    await this._handleImportCollection(provider);
+  }
+
+  private async _handleExportCollection(folderId: string, format: string) {
+    const folder = this._findFolder(folderId);
+    if (!folder) {
+      vscode.window.showErrorMessage("Collection not found");
+      return;
+    }
+
+    try {
+      let exportData: unknown;
+      let defaultFileName: string;
+
+      if (format === "restlab") {
+        exportData = await exportToRESTLab(folder, this._context);
+        defaultFileName = `${folder.name}.restlab.json`;
+      } else if (format === "postman") {
+        exportData = await exportToPostman(folder, this._context);
+        defaultFileName = `${folder.name}.postman_collection.json`;
+      } else if (format === "thunder-client") {
+        exportData = await exportToThunderClient(folder, this._context);
+        defaultFileName = `${folder.name}.thunder_collection.json`;
+      } else {
+        // Default to RESTLab format
+        exportData = await exportToRESTLab(folder, this._context);
+        defaultFileName = `${folder.name}.restlab.json`;
+      }
+
+      const jsonContent = JSON.stringify(exportData, null, 2);
+
+      // Show save dialog
+      const saveUri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(defaultFileName),
+        filters: {
+          "JSON files": ["json"],
+        },
+        title: "Export Collection",
+      });
+
+      if (saveUri) {
+        await vscode.workspace.fs.writeFile(
+          saveUri,
+          Buffer.from(jsonContent, "utf-8")
+        );
+        vscode.window.showInformationMessage(
+          `Collection exported successfully to ${saveUri.fsPath}`
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to export collection: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
