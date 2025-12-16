@@ -42,7 +42,7 @@ body {
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
-  z-index: 10000;
+  z-index: 2147483647;
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   border: 1px solid var(--vscode-editorWidget-border, #454545);
@@ -123,6 +123,186 @@ body {
   background: var(--restlab-gradient);
   border-radius: 2px;
   box-shadow: 0 0 8px var(--restlab-accent-glow);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--glass-bg);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.header-action-btn:hover {
+  background: var(--restlab-accent-subtle);
+  border-color: var(--restlab-accent);
+  color: var(--restlab-accent);
+}
+
+.header-action-btn svg {
+  opacity: 0.8;
+}
+
+.header-action-btn:hover svg {
+  opacity: 1;
+}
+
+/* Import Dropdown */
+.import-dropdown {
+  position: relative;
+}
+
+.import-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  border: 1px solid var(--vscode-dropdown-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.import-dropdown-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, #858585);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--vscode-dropdown-border, #454545);
+}
+
+.import-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-dropdown-foreground, #cccccc);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.import-dropdown-item:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.import-dropdown-item:active {
+  background: var(--vscode-list-activeSelectionBackground, #094771);
+}
+
+.import-dropdown-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  opacity: 0.8;
+}
+
+.import-dropdown-item:hover .import-dropdown-icon {
+  opacity: 1;
+}
+
+/* Export Dropdown (for folder actions) */
+.export-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.export-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  border: 1px solid var(--vscode-dropdown-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+.export-dropdown-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, #858585);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--vscode-dropdown-border, #454545);
+}
+
+.export-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-dropdown-foreground, #cccccc);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.export-dropdown-item:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.export-dropdown-item:active {
+  background: var(--vscode-list-activeSelectionBackground, #094771);
+}
+
+.export-dropdown-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  opacity: 0.8;
+}
+
+.export-dropdown-item:hover .export-dropdown-icon {
+  opacity: 1;
 }
 
 .create-folder-btn {
