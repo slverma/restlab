@@ -213,6 +213,52 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
   const [isSaved, setIsSaved] = useState(true);
 
+  // Resizable panel state
+  const [requestHeight, setRequestHeight] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const requestBarHeight = 160; // Approximate height of header + request bar
+      const newHeight = e.clientY - containerRect.top - requestBarHeight;
+
+      // Clamp between min and max heights
+      const clampedHeight = Math.max(
+        100,
+        Math.min(newHeight, window.innerHeight - 300)
+      );
+      setRequestHeight(clampedHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    if (isResizing) {
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
   // Methods that support request body
   const methodsWithBody = ["POST", "PUT", "PATCH"];
 
@@ -583,7 +629,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   };
 
   return (
-    <div className="request-editor">
+    <div className="request-editor" ref={containerRef}>
       <div className="request-header">
         <div className="header-info">
           <input
@@ -651,7 +697,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           )}
-          Send
+          <span className="btn-text">Send</span>
         </button>
         <button
           className={`save-btn ${isSaved ? "saved" : "unsaved"}`}
@@ -673,7 +719,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
           </svg>
-          {isSaved ? "Saved" : "Save"}
+          <span className="btn-text">{isSaved ? "Saved" : "Save"}</span>
         </button>
         <button
           className="curl-btn"
@@ -693,7 +739,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             <polyline points="16 18 22 12 16 6" />
             <polyline points="8 6 2 12 8 18" />
           </svg>
-          cURL
+          <span className="btn-text">cURL</span>
         </button>
       </div>
 
@@ -703,7 +749,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         </div>
       )}
 
-      <div className="request-content">
+      <div
+        className="request-content"
+        style={{ height: requestHeight, maxHeight: "none" }}
+      >
         <div className="tabs">
           <button
             className={`tab ${activeTab === "headers" ? "active" : ""}`}
@@ -1002,6 +1051,15 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       </div>
 
       {(response || isLoading) && (
+        <div
+          className={`resize-handle ${isResizing ? "active" : ""}`}
+          onMouseDown={handleResizeStart}
+        >
+          <div className="resize-handle-bar" />
+        </div>
+      )}
+
+      {(response || isLoading) && (
         <div className="response-section">
           <div className="response-header">
             <h2>Response</h2>
@@ -1010,10 +1068,18 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                 <span
                   className={`status-badge ${getStatusColor(response.status)}`}
                 >
-                  {response.status} {response.statusText}
+                  {response.status === 0
+                    ? "Network Error"
+                    : `${response.status} ${response.statusText}`}
                 </span>
-                <span className="time-badge">{response.time}ms</span>
-                <span className="size-badge">{formatSize(response.size)}</span>
+                {response.status !== 0 && (
+                  <>
+                    <span className="time-badge">{response.time}ms</span>
+                    <span className="size-badge">
+                      {formatSize(response.size)}
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1130,19 +1196,43 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                 </div>
 
                 <div className="response-content">
-                  {responseTab === "body" && (
-                    <pre className="response-body">
-                      {formatJson(response.data)}
-                    </pre>
-                  )}
+                  {responseTab === "body" &&
+                    (response.status === 0 ? (
+                      <div className="error-display">
+                        <div className="error-icon">
+                          <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                          </svg>
+                        </div>
+                        <h3 className="error-title">Request Failed</h3>
+                        <p className="error-message">{response.data}</p>
+                      </div>
+                    ) : (
+                      <pre className="response-body">
+                        {formatJson(response.data)}
+                      </pre>
+                    ))}
                   {responseTab === "headers" && (
                     <div className="response-headers">
-                      {Object.entries(response.headers).map(([key, value]) => (
-                        <div key={key} className="response-header-row">
-                          <span className="header-name">{key}</span>
-                          <span className="header-value">{value}</span>
-                        </div>
-                      ))}
+                      {Object.entries(response.headers).length === 0 ? (
+                        <p className="empty-hint">No headers available</p>
+                      ) : (
+                        Object.entries(response.headers).map(([key, value]) => (
+                          <div key={key} className="response-header-row">
+                            <span className="header-name">{key}</span>
+                            <span className="header-value">{value}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
