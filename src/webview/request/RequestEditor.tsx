@@ -213,26 +213,35 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
   const [isSaved, setIsSaved] = useState(true);
 
-  // Resizable panel state
-  const [requestHeight, setRequestHeight] = useState(280);
+  // Layout and resizable panel state
+  const [splitLayout, setSplitLayout] = useState<"horizontal" | "vertical">(
+    "horizontal"
+  );
+  const [requestSize, setRequestSize] = useState(50); // percentage for split view
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle resizing
+  // Handle resizing for both horizontal and vertical layouts
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
+      if (!isResizing || !splitContainerRef.current) return;
 
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const requestBarHeight = 160; // Approximate height of header + request bar
-      const newHeight = e.clientY - containerRect.top - requestBarHeight;
+      const containerRect = splitContainerRef.current.getBoundingClientRect();
 
-      // Clamp between min and max heights
-      const clampedHeight = Math.max(
-        100,
-        Math.min(newHeight, window.innerHeight - 300)
-      );
-      setRequestHeight(clampedHeight);
+      if (splitLayout === "horizontal") {
+        // Vertical resize (top/bottom)
+        const newSize =
+          ((e.clientY - containerRect.top) / containerRect.height) * 100;
+        const clampedSize = Math.max(20, Math.min(80, newSize));
+        setRequestSize(clampedSize);
+      } else {
+        // Horizontal resize (left/right)
+        const newSize =
+          ((e.clientX - containerRect.left) / containerRect.width) * 100;
+        const clampedSize = Math.max(25, Math.min(75, newSize));
+        setRequestSize(clampedSize);
+      }
     };
 
     const handleMouseUp = () => {
@@ -242,7 +251,8 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     };
 
     if (isResizing) {
-      document.body.style.cursor = "row-resize";
+      document.body.style.cursor =
+        splitLayout === "horizontal" ? "row-resize" : "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
@@ -252,11 +262,18 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, splitLayout]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
+  };
+
+  const toggleLayout = () => {
+    setSplitLayout((prev) =>
+      prev === "horizontal" ? "vertical" : "horizontal"
+    );
+    setRequestSize(50); // Reset to 50% when switching layouts
   };
 
   // Methods that support request body
@@ -741,6 +758,47 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           </svg>
           <span className="btn-text">cURL</span>
         </button>
+        {(response || isLoading) && (
+          <button
+            className="layout-toggle-btn"
+            onClick={toggleLayout}
+            title={
+              splitLayout === "horizontal"
+                ? "Switch to side-by-side view"
+                : "Switch to stacked view"
+            }
+          >
+            {splitLayout === "horizontal" ? (
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="12" y1="3" x2="12" y2="21" />
+              </svg>
+            ) : (
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
 
       {folderConfig.baseUrl && (
@@ -750,100 +808,73 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       )}
 
       <div
-        className="request-content"
-        style={{ height: requestHeight, maxHeight: "none" }}
+        className={`split-container ${splitLayout} ${
+          response || isLoading ? "has-response" : ""
+        }`}
+        ref={splitContainerRef}
       >
-        <div className="tabs">
-          <button
-            className={`tab ${activeTab === "headers" ? "active" : ""}`}
-            onClick={() => setActiveTab("headers")}
-          >
-            Headers
-            {(config.headers?.length || 0) > 0 && (
-              <span className="badge">{config.headers?.length}</span>
-            )}
-          </button>
-          {methodsWithBody.includes(config.method) && (
-            <button
-              className={`tab ${activeTab === "body" ? "active" : ""}`}
-              onClick={() => setActiveTab("body")}
-            >
-              Body
-            </button>
-          )}
-        </div>
-
-        <div className="tab-content">
-          {activeTab === "headers" && (
-            <div className="headers-section">
-              {folderConfig.headers && folderConfig.headers.length > 0 && (
-                <div className="inherited-headers">
-                  <h3>Inherited from Collection</h3>
-                  {folderConfig.headers.map((header, index) => (
-                    <div key={index} className="header-row inherited">
-                      <input
-                        type="text"
-                        value={header.key}
-                        disabled
-                        className="header-key"
-                      />
-                      <input
-                        type="text"
-                        value={header.value}
-                        disabled
-                        className="header-value"
-                      />
-                    </div>
-                  ))}
-                </div>
+        <div
+          className="request-panel"
+          style={
+            response || isLoading
+              ? {
+                  [splitLayout === "horizontal"
+                    ? "height"
+                    : "width"]: `${requestSize}%`,
+                }
+              : undefined
+          }
+        >
+          <div className="request-content">
+            <div className="tabs">
+              <button
+                className={`tab ${activeTab === "headers" ? "active" : ""}`}
+                onClick={() => setActiveTab("headers")}
+              >
+                Headers
+                {(config.headers?.length || 0) > 0 && (
+                  <span className="badge">{config.headers?.length}</span>
+                )}
+              </button>
+              {methodsWithBody.includes(config.method) && (
+                <button
+                  className={`tab ${activeTab === "body" ? "active" : ""}`}
+                  onClick={() => setActiveTab("body")}
+                >
+                  Body
+                </button>
               )}
+            </div>
 
-              <div className="request-headers">
-                <div className="section-header">
-                  <h3>Request Headers</h3>
-                  <button className="add-btn" onClick={handleAddHeader}>
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Add
-                  </button>
-                </div>
+            <div className="tab-content">
+              {activeTab === "headers" && (
+                <div className="headers-section">
+                  {folderConfig.headers && folderConfig.headers.length > 0 && (
+                    <div className="inherited-headers">
+                      <h3>Inherited from Collection</h3>
+                      {folderConfig.headers.map((header, index) => (
+                        <div key={index} className="header-row inherited">
+                          <input
+                            type="text"
+                            value={header.key}
+                            disabled
+                            className="header-key"
+                          />
+                          <input
+                            type="text"
+                            value={header.value}
+                            disabled
+                            className="header-value"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {(config.headers || []).length === 0 ? (
-                  <p className="empty-hint">No custom headers</p>
-                ) : (
-                  (config.headers || []).map((header, index) => (
-                    <div key={index} className="header-row">
-                      <AutocompleteInput
-                        value={header.key}
-                        onChange={(value) =>
-                          handleUpdateHeader(index, "key", value)
-                        }
-                        placeholder="Header name"
-                        suggestions={COMMON_HEADERS}
-                        className="header-key"
-                      />
-                      <input
-                        type="text"
-                        value={header.value}
-                        onChange={(e) =>
-                          handleUpdateHeader(index, "value", e.target.value)
-                        }
-                        placeholder="Value"
-                        className="header-value"
-                      />
-                      <button
-                        className="remove-btn"
-                        onClick={() => handleRemoveHeader(index)}
-                      >
+                  <div className="request-headers">
+                    <div className="section-header">
+                      <h3>Request Headers</h3>
+                      <button className="add-btn" onClick={handleAddHeader}>
                         <svg
                           width="14"
                           height="14"
@@ -852,167 +883,354 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                           stroke="currentColor"
                           strokeWidth="2"
                         >
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
+                        Add
                       </button>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
 
-          {activeTab === "body" && methodsWithBody.includes(config.method) && (
-            <div className="body-section">
-              <div className="content-type-selector">
-                <label>Content Type:</label>
-                <select
-                  value={config.contentType || ""}
-                  onChange={(e) =>
-                    handleConfigChange({ contentType: e.target.value })
-                  }
-                  className="content-type-select"
-                >
-                  {CONTENT_TYPES.map((ct) => (
-                    <option key={ct.value} value={ct.value}>
-                      {ct.label}
-                      {ct.value ? ` (${ct.value})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {isFormContentType(config.contentType) ? (
-                <div className="form-data-section">
-                  <div className="section-header">
-                    <h3>Form Fields</h3>
-                    <button className="add-btn" onClick={handleAddFormData}>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      Add Field
-                    </button>
-                  </div>
-
-                  {(config.formData || []).length === 0 ? (
-                    <p className="empty-hint">
-                      No form fields. Click "Add Field" to add one.
-                    </p>
-                  ) : (
-                    (config.formData || []).map((item, index) => (
-                      <div key={index} className="form-data-row">
-                        <input
-                          type="text"
-                          value={item.key}
-                          onChange={(e) =>
-                            handleUpdateFormData(index, "key", e.target.value)
-                          }
-                          placeholder="Field name"
-                          className="form-data-key"
-                        />
-
-                        {config.contentType === "multipart/form-data" && (
-                          <button
-                            className={`type-toggle ${
-                              item.type === "file" ? "file-type" : "text-type"
-                            }`}
-                            onClick={() => handleToggleFormDataType(index)}
-                            title={
-                              item.type === "file"
-                                ? "Switch to text"
-                                : "Switch to file"
+                    {(config.headers || []).length === 0 ? (
+                      <p className="empty-hint">No custom headers</p>
+                    ) : (
+                      (config.headers || []).map((header, index) => (
+                        <div key={index} className="header-row">
+                          <AutocompleteInput
+                            value={header.key}
+                            onChange={(value) =>
+                              handleUpdateHeader(index, "key", value)
                             }
-                          >
-                            {item.type === "file" ? (
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                            ) : (
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <line x1="17" y1="10" x2="3" y2="10" />
-                                <line x1="21" y1="6" x2="3" y2="6" />
-                                <line x1="21" y1="14" x2="3" y2="14" />
-                                <line x1="17" y1="18" x2="3" y2="18" />
-                              </svg>
-                            )}
-                          </button>
-                        )}
-
-                        {item.type === "file" ? (
-                          <div className="file-input-wrapper">
-                            <input
-                              type="file"
-                              id={`file-input-${index}`}
-                              className="file-input-hidden"
-                              onChange={(e) =>
-                                handleFileSelect(
-                                  index,
-                                  e.target.files?.[0] || null
-                                )
-                              }
-                            />
-                            <label
-                              htmlFor={`file-input-${index}`}
-                              className="file-input-label"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="17 8 12 3 7 8" />
-                                <line x1="12" y1="3" x2="12" y2="15" />
-                              </svg>
-                              {item.fileName || "Choose file"}
-                            </label>
-                          </div>
-                        ) : (
+                            placeholder="Header name"
+                            suggestions={COMMON_HEADERS}
+                            className="header-key"
+                          />
                           <input
                             type="text"
-                            value={item.value}
+                            value={header.value}
                             onChange={(e) =>
-                              handleUpdateFormData(
-                                index,
-                                "value",
-                                e.target.value
-                              )
+                              handleUpdateHeader(index, "value", e.target.value)
                             }
                             placeholder="Value"
-                            className="form-data-value"
+                            className="header-value"
                           />
+                          <button
+                            className="remove-btn"
+                            onClick={() => handleRemoveHeader(index)}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "body" &&
+                methodsWithBody.includes(config.method) && (
+                  <div className="body-section">
+                    <div className="content-type-selector">
+                      <label>Content Type:</label>
+                      <select
+                        value={config.contentType || ""}
+                        onChange={(e) =>
+                          handleConfigChange({ contentType: e.target.value })
+                        }
+                        className="content-type-select"
+                      >
+                        {CONTENT_TYPES.map((ct) => (
+                          <option key={ct.value} value={ct.value}>
+                            {ct.label}
+                            {ct.value ? ` (${ct.value})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {isFormContentType(config.contentType) ? (
+                      <div className="form-data-section">
+                        <div className="section-header">
+                          <h3>Form Fields</h3>
+                          <button
+                            className="add-btn"
+                            onClick={handleAddFormData}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            Add Field
+                          </button>
+                        </div>
+
+                        {(config.formData || []).length === 0 ? (
+                          <p className="empty-hint">
+                            No form fields. Click "Add Field" to add one.
+                          </p>
+                        ) : (
+                          (config.formData || []).map((item, index) => (
+                            <div key={index} className="form-data-row">
+                              <input
+                                type="text"
+                                value={item.key}
+                                onChange={(e) =>
+                                  handleUpdateFormData(
+                                    index,
+                                    "key",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Field name"
+                                className="form-data-key"
+                              />
+
+                              {config.contentType === "multipart/form-data" && (
+                                <button
+                                  className={`type-toggle ${
+                                    item.type === "file"
+                                      ? "file-type"
+                                      : "text-type"
+                                  }`}
+                                  onClick={() =>
+                                    handleToggleFormDataType(index)
+                                  }
+                                  title={
+                                    item.type === "file"
+                                      ? "Switch to text"
+                                      : "Switch to file"
+                                  }
+                                >
+                                  {item.type === "file" ? (
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                  ) : (
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <line x1="17" y1="10" x2="3" y2="10" />
+                                      <line x1="21" y1="6" x2="3" y2="6" />
+                                      <line x1="21" y1="14" x2="3" y2="14" />
+                                      <line x1="17" y1="18" x2="3" y2="18" />
+                                    </svg>
+                                  )}
+                                </button>
+                              )}
+
+                              {item.type === "file" ? (
+                                <div className="file-input-wrapper">
+                                  <input
+                                    type="file"
+                                    id={`file-input-${index}`}
+                                    className="file-input-hidden"
+                                    onChange={(e) =>
+                                      handleFileSelect(
+                                        index,
+                                        e.target.files?.[0] || null
+                                      )
+                                    }
+                                  />
+                                  <label
+                                    htmlFor={`file-input-${index}`}
+                                    className="file-input-label"
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                      <polyline points="17 8 12 3 7 8" />
+                                      <line x1="12" y1="3" x2="12" y2="15" />
+                                    </svg>
+                                    {item.fileName || "Choose file"}
+                                  </label>
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={item.value}
+                                  onChange={(e) =>
+                                    handleUpdateFormData(
+                                      index,
+                                      "value",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Value"
+                                  className="form-data-value"
+                                />
+                              )}
+
+                              <button
+                                className="remove-btn"
+                                onClick={() => handleRemoveFormData(index)}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))
                         )}
 
+                        {hasFileFields(config.formData) && (
+                          <p className="file-warning">
+                            ⚠️ File uploads require multipart/form-data. Files
+                            will be sent as base64 encoded.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={config.body || ""}
+                        onChange={(e) =>
+                          handleConfigChange({ body: e.target.value })
+                        }
+                        placeholder={getBodyPlaceholder(config.contentType)}
+                        className="body-editor"
+                      />
+                    )}
+                  </div>
+                )}
+            </div>
+          </div>
+        </div>
+
+        {(response || isLoading) && (
+          <div
+            className={`resize-handle ${splitLayout} ${
+              isResizing ? "active" : ""
+            }`}
+            onMouseDown={handleResizeStart}
+          >
+            <div className="resize-handle-bar" />
+          </div>
+        )}
+
+        {(response || isLoading) && (
+          <div
+            className="response-panel"
+            style={{
+              [splitLayout === "horizontal" ? "height" : "width"]: `${
+                100 - requestSize
+              }%`,
+            }}
+          >
+            <div className="response-section">
+              <div className="response-header">
+                <h2>Response</h2>
+                {response && (
+                  <div className="response-meta">
+                    <span
+                      className={`status-badge ${getStatusColor(
+                        response.status
+                      )}`}
+                    >
+                      {response.status === 0
+                        ? "Network Error"
+                        : `${response.status} ${response.statusText}`}
+                    </span>
+                    {response.status !== 0 && (
+                      <>
+                        <span className="time-badge">{response.time}ms</span>
+                        <span className="size-badge">
+                          {formatSize(response.size)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {isLoading ? (
+                <div className="loading-state">
+                  <span className="loading-spinner large"></span>
+                  <p>Sending request...</p>
+                </div>
+              ) : (
+                response && (
+                  <>
+                    <div className="response-toolbar">
+                      <div className="tabs">
                         <button
-                          className="remove-btn"
-                          onClick={() => handleRemoveFormData(index)}
+                          className={`tab ${
+                            responseTab === "body" ? "active" : ""
+                          }`}
+                          onClick={() => setResponseTab("body")}
+                        >
+                          Body
+                        </button>
+                        <button
+                          className={`tab ${
+                            responseTab === "headers" ? "active" : ""
+                          }`}
+                          onClick={() => setResponseTab("headers")}
+                        >
+                          Headers
+                          <span className="badge">
+                            {Object.keys(response.headers).length}
+                          </span>
+                        </button>
+                      </div>
+                      <div className="response-actions">
+                        <button
+                          className="action-btn"
+                          title="Copy to clipboard"
+                          onClick={() => {
+                            const content =
+                              responseTab === "body"
+                                ? formatJson(response.data)
+                                : Object.entries(response.headers)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join("\n");
+                            navigator.clipboard.writeText(content);
+                            vscode.postMessage({
+                              type: "showInfo",
+                              message: "Copied to clipboard!",
+                            });
+                          }}
                         >
                           <svg
                             width="14"
@@ -1022,225 +1240,112 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                             stroke="currentColor"
                             strokeWidth="2"
                           >
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            ></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                           </svg>
+                          Copy
                         </button>
-                      </div>
-                    ))
-                  )}
-
-                  {hasFileFields(config.formData) && (
-                    <p className="file-warning">
-                      ⚠️ File uploads require multipart/form-data. Files will be
-                      sent as base64 encoded.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <textarea
-                  value={config.body || ""}
-                  onChange={(e) => handleConfigChange({ body: e.target.value })}
-                  placeholder={getBodyPlaceholder(config.contentType)}
-                  className="body-editor"
-                />
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {(response || isLoading) && (
-        <div
-          className={`resize-handle ${isResizing ? "active" : ""}`}
-          onMouseDown={handleResizeStart}
-        >
-          <div className="resize-handle-bar" />
-        </div>
-      )}
-
-      {(response || isLoading) && (
-        <div className="response-section">
-          <div className="response-header">
-            <h2>Response</h2>
-            {response && (
-              <div className="response-meta">
-                <span
-                  className={`status-badge ${getStatusColor(response.status)}`}
-                >
-                  {response.status === 0
-                    ? "Network Error"
-                    : `${response.status} ${response.statusText}`}
-                </span>
-                {response.status !== 0 && (
-                  <>
-                    <span className="time-badge">{response.time}ms</span>
-                    <span className="size-badge">
-                      {formatSize(response.size)}
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {isLoading ? (
-            <div className="loading-state">
-              <span className="loading-spinner large"></span>
-              <p>Sending request...</p>
-            </div>
-          ) : (
-            response && (
-              <>
-                <div className="response-toolbar">
-                  <div className="tabs">
-                    <button
-                      className={`tab ${
-                        responseTab === "body" ? "active" : ""
-                      }`}
-                      onClick={() => setResponseTab("body")}
-                    >
-                      Body
-                    </button>
-                    <button
-                      className={`tab ${
-                        responseTab === "headers" ? "active" : ""
-                      }`}
-                      onClick={() => setResponseTab("headers")}
-                    >
-                      Headers
-                      <span className="badge">
-                        {Object.keys(response.headers).length}
-                      </span>
-                    </button>
-                  </div>
-                  <div className="response-actions">
-                    <button
-                      className="action-btn"
-                      title="Copy to clipboard"
-                      onClick={() => {
-                        const content =
-                          responseTab === "body"
-                            ? formatJson(response.data)
-                            : Object.entries(response.headers)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join("\n");
-                        navigator.clipboard.writeText(content);
-                        vscode.postMessage({
-                          type: "showInfo",
-                          message: "Copied to clipboard!",
-                        });
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <rect
-                          x="9"
-                          y="9"
-                          width="13"
-                          height="13"
-                          rx="2"
-                          ry="2"
-                        ></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                      Copy
-                    </button>
-                    <button
-                      className="action-btn"
-                      title="Download response"
-                      onClick={() => {
-                        const content =
-                          responseTab === "body"
-                            ? formatJson(response.data)
-                            : Object.entries(response.headers)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join("\n");
-                        const extension =
-                          responseTab === "body"
-                            ? getFileExtension(response.headers)
-                            : "txt";
-                        const filename = `response-${Date.now()}.${extension}`;
-                        vscode.postMessage({
-                          type: "downloadResponse",
-                          content,
-                          filename,
-                          mimeType:
-                            responseTab === "body"
-                              ? response.headers["content-type"] || "text/plain"
-                              : "text/plain",
-                        });
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
-                      Download
-                    </button>
-                  </div>
-                </div>
-
-                <div className="response-content">
-                  {responseTab === "body" &&
-                    (response.status === 0 ? (
-                      <div className="error-display">
-                        <div className="error-icon">
+                        <button
+                          className="action-btn"
+                          title="Download response"
+                          onClick={() => {
+                            const content =
+                              responseTab === "body"
+                                ? formatJson(response.data)
+                                : Object.entries(response.headers)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join("\n");
+                            const extension =
+                              responseTab === "body"
+                                ? getFileExtension(response.headers)
+                                : "txt";
+                            const filename = `response-${Date.now()}.${extension}`;
+                            vscode.postMessage({
+                              type: "downloadResponse",
+                              content,
+                              filename,
+                              mimeType:
+                                responseTab === "body"
+                                  ? response.headers["content-type"] ||
+                                    "text/plain"
+                                  : "text/plain",
+                            });
+                          }}
+                        >
                           <svg
-                            width="48"
-                            height="48"
+                            width="14"
+                            height="14"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            strokeWidth="1.5"
+                            strokeWidth="2"
                           >
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
                           </svg>
-                        </div>
-                        <h3 className="error-title">Request Failed</h3>
-                        <p className="error-message">{response.data}</p>
+                          Download
+                        </button>
                       </div>
-                    ) : (
-                      <pre className="response-body">
-                        {formatJson(response.data)}
-                      </pre>
-                    ))}
-                  {responseTab === "headers" && (
-                    <div className="response-headers">
-                      {Object.entries(response.headers).length === 0 ? (
-                        <p className="empty-hint">No headers available</p>
-                      ) : (
-                        Object.entries(response.headers).map(([key, value]) => (
-                          <div key={key} className="response-header-row">
-                            <span className="header-name">{key}</span>
-                            <span className="header-value">{value}</span>
+                    </div>
+
+                    <div className="response-content">
+                      {responseTab === "body" &&
+                        (response.status === 0 ? (
+                          <div className="error-display">
+                            <div className="error-icon">
+                              <svg
+                                width="48"
+                                height="48"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                              >
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                              </svg>
+                            </div>
+                            <h3 className="error-title">Request Failed</h3>
+                            <p className="error-message">{response.data}</p>
                           </div>
-                        ))
+                        ) : (
+                          <pre className="response-body">
+                            {formatJson(response.data)}
+                          </pre>
+                        ))}
+                      {responseTab === "headers" && (
+                        <div className="response-headers">
+                          {Object.entries(response.headers).length === 0 ? (
+                            <p className="empty-hint">No headers available</p>
+                          ) : (
+                            Object.entries(response.headers).map(
+                              ([key, value]) => (
+                                <div key={key} className="response-header-row">
+                                  <span className="header-name">{key}</span>
+                                  <span className="header-value">{value}</span>
+                                </div>
+                              )
+                            )
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </>
-            )
-          )}
-        </div>
-      )}
+                  </>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
