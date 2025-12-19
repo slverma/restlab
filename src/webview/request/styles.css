@@ -824,20 +824,60 @@ body {
   width: 100%;
   flex: 1;
   min-height: 100px;
-  padding: 12px;
+}
+
+/* JSON Editor with CodeMirror */
+.json-editor-container {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 150px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
   background-color: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  font-family: monospace;
-  font-size: 13px;
-  resize: none;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.body-editor:focus {
-  outline: none;
+.json-editor-container:focus-within {
   border-color: var(--restlab-accent);
+}
+
+.codemirror-wrapper {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.codemirror-wrapper .cm-editor {
+  height: 100%;
+  outline: none;
+}
+
+.codemirror-wrapper .cm-scroller {
+  overflow: auto;
+  padding-bottom: 24px; /* Space for hint */
+}
+
+.json-editor-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-input-background);
+  border-top: 1px solid var(--glass-border);
+  opacity: 0.7;
+  z-index: 10;
+}
+
+.json-editor-hint span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Form Data Section */

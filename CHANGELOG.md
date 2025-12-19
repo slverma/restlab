@@ -6,6 +6,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.3] - 2024-12-19
+
+### Added
+
+#### Enhanced JSON Editor
+
+- **CodeMirror Integration** - Replaced basic textarea with CodeMirror editor for JSON request bodies
+- **Syntax Highlighting** - VS Code dark theme-styled syntax highlighting for JSON with distinct colors:
+  - Property names in blue (#9cdcfe)
+  - Strings in orange (#ce9178)
+  - Numbers in green (#b5cea8)
+  - Booleans and null in blue (#569cd6)
+  - Brackets in gold (#ffd700)
+- **Line Numbers** - Added line number gutter for easier navigation
+- **Code Folding** - Collapse/expand JSON objects and arrays with fold gutter
+- **Comment Support** - Toggle line comments with `Ctrl+/` (comments stripped before sending requests)
+- **Keyboard Shortcuts**:
+  - `Ctrl+/` - Toggle line comment
+  - `Ctrl+Shift+[` - Fold code block
+  - `Ctrl+Shift+]` - Unfold code block
+  - Full undo/redo history support
+- **Bracket Matching** - Automatic highlighting of matching brackets
+- **Active Line Highlighting** - Visual indicator for current line
+- **Search & Replace** - Built-in search functionality with keyboard shortcuts
+- **Smart Comment Stripping** - Comments are automatically removed from JSON body before sending requests and generating cURL commands
+
+### Changed
+
+- **Request Body Editor** - Upgraded from plain textarea to full-featured CodeMirror editor
+- **Editor Styling** - Glass-effect container with focus border highlighting
+- **Editor Hints** - Added keyboard shortcut hints at the bottom of the editor
+
+### Dependencies
+
+- Added `@codemirror/commands` ^6.10.0
+- Added `@codemirror/lang-json` ^6.0.2
+- Added `@codemirror/language` ^6.11.3
+- Added `@codemirror/search` ^6.5.11
+- Added `@codemirror/state` ^6.5.2
+- Added `@codemirror/view` ^6.39.4
+- Added `@lezer/highlight` ^1.2.3
+
+---
+
+## [0.0.2] - 2024-12-17
+
+### Fixed
+
+- Minor bug fixes and stability improvements
+
+---
+
 ## [0.0.1] - 2024-12-16
 
 ### Added
