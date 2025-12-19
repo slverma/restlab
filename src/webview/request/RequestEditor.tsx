@@ -1,4 +1,300 @@
 import React, { useState, useEffect, useRef } from "react";
+import { EditorState, StateField, StateEffect } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  drawSelection,
+  dropCursor,
+  Decoration,
+  DecorationSet,
+} from "@codemirror/view";
+import { json } from "@codemirror/lang-json";
+import {
+  foldGutter,
+  indentOnInput,
+  syntaxHighlighting,
+  HighlightStyle,
+  bracketMatching,
+  foldKeymap,
+} from "@codemirror/language";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { tags } from "@lezer/highlight";
+
+// Custom syntax highlighting for JSON (VS Code dark theme colors)
+const jsonHighlightStyle = HighlightStyle.define([
+  { tag: tags.propertyName, color: "#9cdcfe" },
+  { tag: tags.string, color: "#ce9178" },
+  { tag: tags.number, color: "#b5cea8" },
+  { tag: tags.bool, color: "#569cd6" },
+  { tag: tags.null, color: "#569cd6" },
+  { tag: tags.keyword, color: "#569cd6" },
+  { tag: tags.punctuation, color: "#d4d4d4" },
+  { tag: tags.bracket, color: "#ffd700" },
+  { tag: tags.lineComment, color: "#6a9955", fontStyle: "italic" },
+  { tag: tags.blockComment, color: "#6a9955", fontStyle: "italic" },
+]);
+
+// CodeMirror theme to match VS Code dark theme
+const vsCodeDarkTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "var(--vscode-input-background)",
+      color: "var(--vscode-input-foreground)",
+      fontSize: "13px",
+      height: "100%",
+    },
+    ".cm-content": {
+      fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+      padding: "8px 0",
+      caretColor: "var(--vscode-input-foreground)",
+    },
+    ".cm-cursor": {
+      borderLeftColor: "var(--vscode-input-foreground)",
+    },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+      backgroundColor: "rgba(56, 189, 248, 0.3)",
+    },
+    ".cm-activeLine": {
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+    },
+    ".cm-gutters": {
+      backgroundColor: "var(--vscode-input-background)",
+      color: "var(--vscode-descriptionForeground)",
+      border: "none",
+      borderRight: "1px solid var(--glass-border)",
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 8px",
+      minWidth: "32px",
+    },
+    ".cm-foldGutter .cm-gutterElement": {
+      padding: "0 4px",
+      cursor: "pointer",
+    },
+    ".cm-foldPlaceholder": {
+      backgroundColor: "rgba(99, 102, 241, 0.2)",
+      border: "none",
+      color: "var(--restlab-accent)",
+      padding: "0 4px",
+      borderRadius: "3px",
+    },
+    ".cm-comment-line": {
+      color: "#6a9955 !important",
+      fontStyle: "italic",
+    },
+    ".cm-line .cm-comment-line *": {
+      color: "#6a9955 !important",
+    },
+  },
+  { dark: true }
+);
+
+// Comment line decoration
+const commentLineMark = Decoration.mark({ class: "cm-comment-line" });
+
+// State field to track and decorate comment lines
+const commentLineField = StateField.define<DecorationSet>({
+  create(state) {
+    return computeCommentDecorations(state);
+  },
+  update(decorations, tr) {
+    if (tr.docChanged) {
+      return computeCommentDecorations(tr.state);
+    }
+    return decorations;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+function computeCommentDecorations(state: EditorState): DecorationSet {
+  const decorations: any[] = [];
+  const doc = state.doc;
+
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i);
+    const trimmed = line.text.trimStart();
+    if (trimmed.startsWith("//")) {
+      decorations.push(commentLineMark.range(line.from, line.to));
+    }
+  }
+
+  return Decoration.set(decorations);
+}
+
+// Custom toggle comment function for JSON with // comments
+function toggleLineComment(view: EditorView): boolean {
+  const state = view.state;
+  const changes: { from: number; to: number; insert: string }[] = [];
+
+  // Get all lines in selection
+  const selection = state.selection.main;
+  const startLine = state.doc.lineAt(selection.from);
+  const endLine = state.doc.lineAt(selection.to);
+
+  // Collect all lines
+  const lines: { num: number; text: string; from: number; to: number }[] = [];
+  for (let i = startLine.number; i <= endLine.number; i++) {
+    const line = state.doc.line(i);
+    lines.push({ num: i, text: line.text, from: line.from, to: line.to });
+  }
+
+  // Check if all lines are commented
+  const allCommented = lines.every((line) =>
+    line.text.trimStart().startsWith("//")
+  );
+
+  // Build changes
+  for (const line of lines) {
+    const trimmed = line.text.trimStart();
+    const indent = line.text.substring(0, line.text.length - trimmed.length);
+
+    if (allCommented) {
+      // Remove comment
+      if (trimmed.startsWith("// ")) {
+        changes.push({
+          from: line.from,
+          to: line.to,
+          insert: indent + trimmed.substring(3),
+        });
+      } else if (trimmed.startsWith("//")) {
+        changes.push({
+          from: line.from,
+          to: line.to,
+          insert: indent + trimmed.substring(2),
+        });
+      }
+    } else {
+      // Add comment (skip if already commented)
+      if (!trimmed.startsWith("//")) {
+        changes.push({
+          from: line.from,
+          to: line.to,
+          insert: indent + "// " + trimmed,
+        });
+      }
+    }
+  }
+
+  if (changes.length > 0) {
+    view.dispatch({ changes });
+  }
+
+  return true;
+}
+
+// JSON Editor with CodeMirror
+const JsonEditor: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}> = ({ value, onChange, placeholder, className }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const isExternalUpdate = useRef(false);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const updateListener = EditorView.updateListener.of((update) => {
+      if (update.docChanged && !isExternalUpdate.current) {
+        onChange(update.state.doc.toString());
+      }
+    });
+
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        lineNumbers(),
+        highlightActiveLineGutter(),
+        highlightActiveLine(),
+        history(),
+        foldGutter({
+          openText: "▼",
+          closedText: "▶",
+        }),
+        drawSelection(),
+        dropCursor(),
+        indentOnInput(),
+        bracketMatching(),
+        highlightSelectionMatches(),
+        json(),
+        syntaxHighlighting(jsonHighlightStyle),
+        commentLineField,
+        vsCodeDarkTheme,
+        keymap.of([
+          { key: "Mod-/", run: toggleLineComment },
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...foldKeymap,
+          ...searchKeymap,
+        ]),
+        updateListener,
+        EditorView.lineWrapping,
+        EditorState.tabSize.of(2),
+        EditorView.contentAttributes.of({
+          "aria-label": "JSON Editor",
+          spellcheck: "false",
+        }),
+      ],
+    });
+
+    const view = new EditorView({
+      state,
+      parent: editorRef.current,
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, []);
+
+  // Sync external value changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && value !== view.state.doc.toString()) {
+      isExternalUpdate.current = true;
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: view.state.doc.length,
+          insert: value,
+        },
+      });
+      isExternalUpdate.current = false;
+    }
+  }, [value]);
+
+  return (
+    <div className={`json-editor-container ${className || ""}`}>
+      <div ref={editorRef} className="codemirror-wrapper" />
+      <div className="json-editor-hint">
+        <span>Ctrl+/ comment • Ctrl+Shift+[ fold • Ctrl+Shift+] unfold</span>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to strip comments from JSON body before sending
+const stripJsonComments = (jsonString: string): string => {
+  if (!jsonString) return jsonString;
+
+  const lines = jsonString.split("\n");
+  const nonCommentLines = lines.filter(
+    (line) => !line.trimStart().startsWith("//")
+  );
+  return nonCommentLines.join("\n");
+};
 
 interface Header {
   key: string;
@@ -357,6 +653,9 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       } else {
         requestBody = formDataToBody(config.formData || [], config.contentType);
       }
+    } else {
+      // Strip comments from JSON/text body before sending
+      requestBody = stripJsonComments(config.body || "");
     }
 
     vscode.postMessage({
@@ -628,8 +927,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           }
         }
       } else if (config.body) {
+        // Strip comments from body for cURL command
+        const cleanBody = stripJsonComments(config.body);
         curl += ` \\
-  -d '${config.body.replace(/'/g, "'\\''")}'`;
+  -d '${cleanBody.replace(/'/g, "'\\''")}'`;
       }
     }
 
@@ -1123,10 +1424,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                         )}
                       </div>
                     ) : (
-                      <textarea
+                      <JsonEditor
                         value={config.body || ""}
-                        onChange={(e) =>
-                          handleConfigChange({ body: e.target.value })
+                        onChange={(value) =>
+                          handleConfigChange({ body: value })
                         }
                         placeholder={getBodyPlaceholder(config.contentType)}
                         className="body-editor"
