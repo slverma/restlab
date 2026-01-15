@@ -26,6 +26,9 @@ const sidebarConfig = {
     ".tsx": "tsx",
     ".ts": "ts",
     ".css": "css",
+    ".ttf": "file",
+    ".woff": "file",
+    ".woff2": "file",
   },
 };
 
@@ -41,21 +44,40 @@ const editorConfig = {
     ".tsx": "tsx",
     ".ts": "ts",
     ".css": "css",
+    ".ttf": "file",
+    ".woff": "file",
+    ".woff2": "file",
   },
 };
 
 // Request webview build config
 const requestConfig = {
-  entryPoints: ["./src/webview/request/index.tsx"],
+  entryPoints: {
+    index: "./src/webview/request/index.tsx",
+    "editor.worker":
+      "./node_modules/monaco-editor/esm/vs/editor/editor.worker.js",
+    "json.worker":
+      "./node_modules/monaco-editor/esm/vs/language/json/json.worker.js",
+    "css.worker":
+      "./node_modules/monaco-editor/esm/vs/language/css/css.worker.js",
+    "html.worker":
+      "./node_modules/monaco-editor/esm/vs/language/html/html.worker.js",
+    "ts.worker":
+      "./node_modules/monaco-editor/esm/vs/language/typescript/ts.worker.js",
+  },
   bundle: true,
-  outfile: "./dist/request/index.js",
-  format: "iife",
+  outdir: "./dist/request",
+  entryNames: "[name]",
+  format: "esm",
   platform: "browser",
   sourcemap: true,
   loader: {
     ".tsx": "tsx",
     ".ts": "ts",
     ".css": "css",
+    ".ttf": "file",
+    ".woff": "file",
+    ".woff2": "file",
   },
 };
 
