@@ -1,286 +1,206 @@
-import React, { useState, useEffect, useRef } from "react";
-import { EditorState, StateField, StateEffect } from "@codemirror/state";
-import {
-  EditorView,
-  keymap,
-  lineNumbers,
-  highlightActiveLine,
-  highlightActiveLineGutter,
-  drawSelection,
-  dropCursor,
-  Decoration,
-  DecorationSet,
-} from "@codemirror/view";
-import { json } from "@codemirror/lang-json";
-import {
-  foldGutter,
-  indentOnInput,
-  syntaxHighlighting,
-  HighlightStyle,
-  bracketMatching,
-  foldKeymap,
-} from "@codemirror/language";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { tags } from "@lezer/highlight";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
+import "monaco-editor/esm/vs/language/html/monaco.contribution.js";
+import "monaco-editor/esm/vs/language/css/monaco.contribution.js";
+import "monaco-editor/esm/vs/language/typescript/monaco.contribution.js";
 
-// Custom syntax highlighting for JSON (VS Code dark theme colors)
-const jsonHighlightStyle = HighlightStyle.define([
-  { tag: tags.propertyName, color: "#9cdcfe" },
-  { tag: tags.string, color: "#ce9178" },
-  { tag: tags.number, color: "#b5cea8" },
-  { tag: tags.bool, color: "#569cd6" },
-  { tag: tags.null, color: "#569cd6" },
-  { tag: tags.keyword, color: "#569cd6" },
-  { tag: tags.punctuation, color: "#d4d4d4" },
-  { tag: tags.bracket, color: "#ffd700" },
-  { tag: tags.lineComment, color: "#6a9955", fontStyle: "italic" },
-  { tag: tags.blockComment, color: "#6a9955", fontStyle: "italic" },
-]);
+const editorWorkerUrl = new URL("editor.worker.js", import.meta.url);
+const jsonWorkerUrl = new URL("json.worker.js", import.meta.url);
+const cssWorkerUrl = new URL("css.worker.js", import.meta.url);
+const htmlWorkerUrl = new URL("html.worker.js", import.meta.url);
+const tsWorkerUrl = new URL("ts.worker.js", import.meta.url);
 
-// CodeMirror theme to match VS Code dark theme
-const vsCodeDarkTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "var(--vscode-input-background)",
-      color: "var(--vscode-input-foreground)",
-      fontSize: "13px",
-      height: "100%",
-    },
-    ".cm-content": {
-      fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-      padding: "8px 0",
-      caretColor: "var(--vscode-input-foreground)",
-    },
-    ".cm-cursor": {
-      borderLeftColor: "var(--vscode-input-foreground)",
-    },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-      backgroundColor: "rgba(56, 189, 248, 0.3)",
-    },
-    ".cm-activeLine": {
-      backgroundColor: "rgba(255, 255, 255, 0.05)",
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "rgba(255, 255, 255, 0.05)",
-    },
-    ".cm-gutters": {
-      backgroundColor: "var(--vscode-input-background)",
-      color: "var(--vscode-descriptionForeground)",
-      border: "none",
-      borderRight: "1px solid var(--glass-border)",
-    },
-    ".cm-lineNumbers .cm-gutterElement": {
-      padding: "0 8px",
-      minWidth: "32px",
-    },
-    ".cm-foldGutter .cm-gutterElement": {
-      padding: "0 4px",
-      cursor: "pointer",
-    },
-    ".cm-foldPlaceholder": {
-      backgroundColor: "rgba(99, 102, 241, 0.2)",
-      border: "none",
-      color: "var(--restlab-accent)",
-      padding: "0 4px",
-      borderRadius: "3px",
-    },
-    ".cm-comment-line": {
-      color: "#6a9955 !important",
-      fontStyle: "italic",
-    },
-    ".cm-line .cm-comment-line *": {
-      color: "#6a9955 !important",
-    },
-  },
-  { dark: true }
-);
+let monacoConfigured = false;
 
-// Comment line decoration
-const commentLineMark = Decoration.mark({ class: "cm-comment-line" });
+const configureMonaco = () => {
+  if (monacoConfigured) return;
+  monacoConfigured = true;
 
-// State field to track and decorate comment lines
-const commentLineField = StateField.define<DecorationSet>({
-  create(state) {
-    return computeCommentDecorations(state);
-  },
-  update(decorations, tr) {
-    if (tr.docChanged) {
-      return computeCommentDecorations(tr.state);
-    }
-    return decorations;
-  },
-  provide: (f) => EditorView.decorations.from(f),
-});
-
-function computeCommentDecorations(state: EditorState): DecorationSet {
-  const decorations: any[] = [];
-  const doc = state.doc;
-
-  for (let i = 1; i <= doc.lines; i++) {
-    const line = doc.line(i);
-    const trimmed = line.text.trimStart();
-    if (trimmed.startsWith("//")) {
-      decorations.push(commentLineMark.range(line.from, line.to));
-    }
-  }
-
-  return Decoration.set(decorations);
-}
-
-// Custom toggle comment function for JSON with // comments
-function toggleLineComment(view: EditorView): boolean {
-  const state = view.state;
-  const changes: { from: number; to: number; insert: string }[] = [];
-
-  // Get all lines in selection
-  const selection = state.selection.main;
-  const startLine = state.doc.lineAt(selection.from);
-  const endLine = state.doc.lineAt(selection.to);
-
-  // Collect all lines
-  const lines: { num: number; text: string; from: number; to: number }[] = [];
-  for (let i = startLine.number; i <= endLine.number; i++) {
-    const line = state.doc.line(i);
-    lines.push({ num: i, text: line.text, from: line.from, to: line.to });
-  }
-
-  // Check if all lines are commented
-  const allCommented = lines.every((line) =>
-    line.text.trimStart().startsWith("//")
-  );
-
-  // Build changes
-  for (const line of lines) {
-    const trimmed = line.text.trimStart();
-    const indent = line.text.substring(0, line.text.length - trimmed.length);
-
-    if (allCommented) {
-      // Remove comment
-      if (trimmed.startsWith("// ")) {
-        changes.push({
-          from: line.from,
-          to: line.to,
-          insert: indent + trimmed.substring(3),
-        });
-      } else if (trimmed.startsWith("//")) {
-        changes.push({
-          from: line.from,
-          to: line.to,
-          insert: indent + trimmed.substring(2),
-        });
+  (
+    self as unknown as { MonacoEnvironment?: monaco.Environment }
+  ).MonacoEnvironment = {
+    getWorker: (_moduleId: string, label: string) => {
+      switch (label) {
+        case "json":
+          return new Worker(jsonWorkerUrl);
+        case "css":
+        case "scss":
+        case "less":
+          return new Worker(cssWorkerUrl);
+        case "html":
+        case "handlebars":
+        case "razor":
+          return new Worker(htmlWorkerUrl);
+        case "typescript":
+        case "javascript":
+          return new Worker(tsWorkerUrl);
+        default:
+          return new Worker(editorWorkerUrl);
       }
-    } else {
-      // Add comment (skip if already commented)
-      if (!trimmed.startsWith("//")) {
-        changes.push({
-          from: line.from,
-          to: line.to,
-          insert: indent + "// " + trimmed,
-        });
-      }
-    }
-  }
+    },
+  };
 
-  if (changes.length > 0) {
-    view.dispatch({ changes });
-  }
+  monaco.languages.setLanguageConfiguration("json", {
+    comments: {
+      lineComment: "//",
+      blockComment: ["/*", "*/"],
+    },
+    brackets: [
+      ["{", "}"],
+      ["[", "]"],
+    ],
+  });
 
-  return true;
-}
+  monaco.editor.defineTheme("restlab-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#1e1e1e",
+      "editorLineNumber.foreground": "#6b7280",
+      "editorLineNumber.activeForeground": "#d1d5db",
+      "editorGutter.foldingControlForeground": "#c0c0c0",
+    },
+  });
 
-// JSON Editor with CodeMirror
-const JsonEditor: React.FC<{
+  monaco.editor.setTheme("restlab-dark");
+};
+
+type MonacoEditorProps = {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
-}> = ({ value, onChange, placeholder, className }) => {
+  language: string;
+  readOnly?: boolean;
+  showHint?: string;
+  formatOnChange?: boolean;
+};
+
+const MonacoEditor: React.FC<MonacoEditorProps> = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+  language,
+  readOnly = false,
+  showHint,
+  formatOnChange = false,
+}) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<EditorView | null>(null);
+  const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const modelRef = useRef<monaco.editor.ITextModel | null>(null);
   const isExternalUpdate = useRef(false);
+  const isFormatting = useRef(false);
+  const formatTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!editorRef.current) return;
+    configureMonaco();
 
-    const updateListener = EditorView.updateListener.of((update) => {
-      if (update.docChanged && !isExternalUpdate.current) {
-        onChange(update.state.doc.toString());
+    const model = monaco.editor.createModel(value, language);
+    modelRef.current = model;
+
+    const editor = monaco.editor.create(editorRef.current, {
+      model,
+      theme: "restlab-dark",
+      readOnly,
+      domReadOnly: readOnly,
+      lineNumbers: "on",
+      folding: true,
+      showFoldingControls: "always",
+      foldingStrategy: "indentation",
+      foldingHighlight: true,
+      glyphMargin: false,
+      lineDecorationsWidth: 10,
+      lineNumbersMinChars: 3,
+      minimap: { enabled: false },
+      fontSize: 13,
+      fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+      renderLineHighlight: "all",
+      selectionHighlight: true,
+      occurrencesHighlight: "singleFile",
+      matchBrackets: "always",
+      wordWrap: "on",
+      scrollbar: {
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
+      },
+      automaticLayout: true,
+      tabSize: 2,
+      renderValidationDecorations: "on",
+      formatOnType: !readOnly && formatOnChange,
+      formatOnPaste: !readOnly && formatOnChange,
+    });
+
+    monacoRef.current = editor;
+
+    const changeDisposable = editor.onDidChangeModelContent(() => {
+      if (isExternalUpdate.current) return;
+      const nextValue = editor.getValue();
+      onChange?.(nextValue);
+
+      if (formatOnChange && !readOnly && !isFormatting.current) {
+        if (formatTimer.current) {
+          window.clearTimeout(formatTimer.current);
+        }
+        formatTimer.current = window.setTimeout(async () => {
+          const editorInstance = monacoRef.current;
+          if (!editorInstance) return;
+          isFormatting.current = true;
+          const formatAction = editorInstance.getAction(
+            "editor.action.formatDocument"
+          );
+          if (formatAction) {
+            await formatAction.run();
+          }
+          isFormatting.current = false;
+        }, 450);
       }
     });
 
-    const state = EditorState.create({
-      doc: value,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        highlightActiveLine(),
-        history(),
-        foldGutter({
-          openText: "▼",
-          closedText: "▶",
-        }),
-        drawSelection(),
-        dropCursor(),
-        indentOnInput(),
-        bracketMatching(),
-        highlightSelectionMatches(),
-        json(),
-        syntaxHighlighting(jsonHighlightStyle),
-        commentLineField,
-        vsCodeDarkTheme,
-        keymap.of([
-          { key: "Mod-/", run: toggleLineComment },
-          ...defaultKeymap,
-          ...historyKeymap,
-          ...foldKeymap,
-          ...searchKeymap,
-        ]),
-        updateListener,
-        EditorView.lineWrapping,
-        EditorState.tabSize.of(2),
-        EditorView.contentAttributes.of({
-          "aria-label": "JSON Editor",
-          spellcheck: "false",
-        }),
-      ],
-    });
-
-    const view = new EditorView({
-      state,
-      parent: editorRef.current,
-    });
-
-    viewRef.current = view;
-
     return () => {
-      view.destroy();
-      viewRef.current = null;
+      changeDisposable.dispose();
+      if (formatTimer.current) {
+        window.clearTimeout(formatTimer.current);
+      }
+      editor.dispose();
+      model.dispose();
+      monacoRef.current = null;
+      modelRef.current = null;
     };
   }, []);
 
-  // Sync external value changes
   useEffect(() => {
-    const view = viewRef.current;
-    if (view && value !== view.state.doc.toString()) {
+    const model = modelRef.current;
+    if (!model) return;
+    if (model.getLanguageId() !== language) {
+      monaco.editor.setModelLanguage(model, language);
+    }
+  }, [language]);
+
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!model) return;
+    if (value !== model.getValue()) {
       isExternalUpdate.current = true;
-      view.dispatch({
-        changes: {
-          from: 0,
-          to: view.state.doc.length,
-          insert: value,
-        },
-      });
+      model.setValue(value);
       isExternalUpdate.current = false;
     }
   }, [value]);
 
   return (
     <div className={`json-editor-container ${className || ""}`}>
-      <div ref={editorRef} className="codemirror-wrapper" />
-      <div className="json-editor-hint">
-        <span>Ctrl+/ comment • Ctrl+Shift+[ fold • Ctrl+Shift+] unfold</span>
-      </div>
+      <div ref={editorRef} className="monaco-wrapper" />
+      {placeholder && !value && (
+        <div className="editor-placeholder">{placeholder}</div>
+      )}
+      {showHint && (
+        <div className="json-editor-hint">
+          <span>{showHint}</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -294,6 +214,27 @@ const stripJsonComments = (jsonString: string): string => {
     (line) => !line.trimStart().startsWith("//")
   );
   return nonCommentLines.join("\n");
+};
+
+const getEditorLanguageFromContentType = (contentType?: string) => {
+  if (!contentType) return "plaintext";
+  const ct = contentType.toLowerCase();
+  if (ct.includes("json")) return "json";
+  if (ct.includes("xml")) return "xml";
+  if (ct.includes("html")) return "html";
+  if (ct.includes("css")) return "css";
+  if (ct.includes("javascript") || ct.includes("ecmascript")) {
+    return "javascript";
+  }
+  return "plaintext";
+};
+
+const formatJson = (data: string) => {
+  try {
+    return JSON.stringify(JSON.parse(data), null, 2);
+  } catch {
+    return data;
+  }
 };
 
 interface Header {
@@ -508,6 +449,26 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const [activeTab, setActiveTab] = useState<"headers" | "body">("headers");
   const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
   const [isSaved, setIsSaved] = useState(true);
+
+  const requestEditorLanguage = useMemo(
+    () => getEditorLanguageFromContentType(config.contentType),
+    [config.contentType]
+  );
+
+  const responseContentType = response?.headers["content-type"];
+  const responseEditorLanguage = useMemo(
+    () => getEditorLanguageFromContentType(responseContentType),
+    [responseContentType]
+  );
+
+  const responseBodyValue = useMemo(() => {
+    if (!response) return "";
+    if (response.status === 0) return response.data;
+    if (responseEditorLanguage === "json") {
+      return formatJson(response.data);
+    }
+    return response.data;
+  }, [response, responseEditorLanguage]);
 
   // Layout and resizable panel state
   const [splitLayout, setSplitLayout] = useState<"horizontal" | "vertical">(
@@ -821,14 +782,6 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     return "status-error";
   };
 
-  const formatJson = (data: string) => {
-    try {
-      return JSON.stringify(JSON.parse(data), null, 2);
-    } catch {
-      return data;
-    }
-  };
-
   const getFileExtension = (headers: Record<string, string>) => {
     const contentType = headers["content-type"] || "";
     if (contentType.includes("json")) return "json";
@@ -944,6 +897,23 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       type: "showInfo",
       message: "cURL command copied to clipboard!",
     });
+  };
+
+  const handleBeautifyJson = () => {
+    if (!config.body) return;
+    try {
+      const formatted = formatJson(config.body);
+      handleConfigChange({ body: formatted });
+      vscode.postMessage({
+        type: "showInfo",
+        message: "JSON formatted successfully!",
+      });
+    } catch (error) {
+      vscode.postMessage({
+        type: "showError",
+        message: "Failed to format: Invalid JSON",
+      });
+    }
   };
 
   return (
@@ -1256,6 +1226,28 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                           </option>
                         ))}
                       </select>
+                      <button
+                        className="beautify-btn"
+                        onClick={handleBeautifyJson}
+                        disabled={!config.body || config.contentType !== "application/json"}
+                        title="Format JSON (Beautify)"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="4 7 4 4 20 4 20 7" />
+                          <line x1="9" y1="20" x2="15" y2="20" />
+                          <line x1="12" y1="4" x2="12" y2="20" />
+                        </svg>
+                        <span className="btn-text">Beautify</span>
+                      </button>
                     </div>
 
                     {isFormContentType(config.contentType) ? (
@@ -1424,13 +1416,18 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                         )}
                       </div>
                     ) : (
-                      <JsonEditor
+                      <MonacoEditor
                         value={config.body || ""}
                         onChange={(value) =>
                           handleConfigChange({ body: value })
                         }
                         placeholder={getBodyPlaceholder(config.contentType)}
                         className="body-editor"
+                        language={requestEditorLanguage}
+                        formatOnChange={
+                          config.contentType === "application/json"
+                        }
+                        showHint="Ctrl+F search • Ctrl+/ comment • Alt+Shift+F format"
                       />
                     )}
                   </div>
@@ -1619,9 +1616,13 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                             <p className="error-message">{response.data}</p>
                           </div>
                         ) : (
-                          <pre className="response-body">
-                            {formatJson(response.data)}
-                          </pre>
+                          <MonacoEditor
+                            value={responseBodyValue}
+                            language={responseEditorLanguage}
+                            readOnly
+                            className="response-editor"
+                            showHint="Ctrl+F search"
+                          />
                         ))}
                       {responseTab === "headers" && (
                         <div className="response-headers">
