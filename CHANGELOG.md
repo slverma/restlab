@@ -6,7 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.0.3] - 2024-12-19
+## [0.0.5] 15-01-2026
+
+### Added
+
+- **JSON Beautify Button** - Added "Beautify" button to format/prettify JSON content in request body
+  - Located at the end of Content Type selector row in Body tab
+  - Automatically formats JSON with proper indentation
+  - Disabled when content type is not JSON or body is empty
+  - Shows success/error notifications
+  - Matches design system with gradient hover effects
+
+### Fixed
+
+- **Monaco Editor Folding Icons** - Fixed chevron icons not displaying in JSON editor
+  - Resolved issue where folding controls showed squares (□) instead of proper chevron arrows (▼/►)
+  - Added explicit unicode content values for folding icon rendering
+  - Applied proper codicon font-family to folding control elements
+
+---
+
+## [0.0.3, 0.0.4] - 2024-12-19
 
 ### Added
 

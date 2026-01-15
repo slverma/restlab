@@ -1,3 +1,26 @@
+@import "monaco-editor/min/vs/editor/editor.main.css";
+
+/* Fix for folding icons - ensure codicon font displays properly with explicit unicode content */
+.monaco-editor .margin-view-overlays .codicon.codicon-folding-expanded::before,
+.monaco-editor
+  .margin-view-overlays
+  .codicon.codicon-folding-manual-expanded::before {
+  content: "\eb90" !important; /* chevron-down unicode from codicon font */
+  font-family: "codicon" !important;
+  font-size: 16px !important;
+  display: inline-block !important;
+}
+
+.monaco-editor .margin-view-overlays .codicon.codicon-folding-collapsed::before,
+.monaco-editor
+  .margin-view-overlays
+  .codicon.codicon-folding-manual-collapsed::before {
+  content: "\eb9e" !important; /* chevron-right unicode from codicon font */
+  font-family: "codicon" !important;
+  font-size: 16px !important;
+  display: inline-block !important;
+}
+
 :root {
   --vscode-font-family: var(
     --vscode-font-family,
@@ -391,6 +414,44 @@ body {
 }
 
 .curl-btn:hover svg {
+  opacity: 1;
+}
+
+/* Beautify Button */
+.beautify-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--glass-bg);
+  color: var(--vscode-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+}
+
+.beautify-btn:hover:not(:disabled) {
+  background: var(--restlab-gradient);
+  border-color: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--restlab-accent-glow);
+}
+
+.beautify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.beautify-btn svg {
+  opacity: 0.8;
+}
+
+.beautify-btn:hover:not(:disabled) svg {
   opacity: 1;
 }
 
@@ -826,7 +887,7 @@ body {
   min-height: 100px;
 }
 
-/* JSON Editor with CodeMirror */
+/* JSON Editor with Monaco */
 .json-editor-container {
   position: relative;
   width: 100%;
@@ -844,20 +905,83 @@ body {
   border-color: var(--restlab-accent);
 }
 
-.codemirror-wrapper {
+.json-editor-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 8px 0 8px;
+  gap: 8px;
+}
+
+.editor-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: var(--glass-bg);
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.editor-action-btn:hover:not(:disabled) {
+  background: var(--restlab-accent-subtle);
+  border-color: var(--restlab-accent);
+  color: var(--restlab-accent);
+  transform: translateY(-1px);
+}
+
+.editor-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-action-btn svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.editor-action-btn:hover:not(:disabled) svg {
+  opacity: 1;
+}
+
+.monaco-wrapper {
   flex: 1;
   overflow: hidden;
   min-height: 0;
 }
 
-.codemirror-wrapper .cm-editor {
-  height: 100%;
+.monaco-wrapper .monaco-editor,
+.monaco-wrapper .monaco-editor-background,
+.monaco-wrapper .monaco-editor .margin {
+  background-color: var(--vscode-input-background) !important;
+}
+
+.monaco-wrapper .monaco-editor {
+  height: 100% !important;
   outline: none;
 }
 
-.codemirror-wrapper .cm-scroller {
-  overflow: auto;
+.monaco-wrapper .monaco-scrollable-element {
   padding-bottom: 24px; /* Space for hint */
+}
+
+.editor-placeholder {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.6;
+  pointer-events: none;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  white-space: pre-wrap;
 }
 
 .json-editor-hint {
@@ -1232,6 +1356,11 @@ body {
   flex-direction: column;
 }
 
+.response-editor {
+  flex: 1;
+  min-height: 0;
+}
+
 .response-body {
   padding: 16px;
   background: linear-gradient(
@@ -1410,13 +1539,15 @@ body {
 
   .send-btn .btn-text,
   .save-btn .btn-text,
-  .curl-btn .btn-text {
+  .curl-btn .btn-text,
+  .beautify-btn .btn-text {
     display: none;
   }
 
   .send-btn,
   .save-btn,
-  .curl-btn {
+  .curl-btn,
+  .beautify-btn {
     gap: 0;
   }
 }
@@ -1450,6 +1581,7 @@ body {
   }
 
   .send-btn,
+  .beautify-btn,
   .save-btn,
   .curl-btn {
     padding: 8px 10px;
