@@ -49,21 +49,6 @@ A modern REST API client for Visual Studio Code. Test, debug, and manage your AP
 
 - VS Code 1.85.0 or higher
 
-## 🔄 Release Notes
-
-### 0.0.1
-
-Initial release:
-
-- Create and manage request folders
-- Full HTTP request support
-- Form data with file upload support
-- Response viewer with copy/download
-- cURL command generation
-- Modern gradient UI theme
-
----
-
 ## Development
 
 ### Prerequisites
