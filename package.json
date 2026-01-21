@@ -3,7 +3,7 @@
   "displayName": "RESTLab",
   "description": "A modern REST API client for VS Code - Test, debug, and manage your APIs with a beautiful interface",
   "publisher": "slverma",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "icon": "resources/restlab-icon.png",
   "repository": {
     "type": "git",
