@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { RequestEditor } from "./RequestEditor";
+import "../tailwind.css";
 import "./styles.css";
 
 const container = document.getElementById("root");
@@ -15,6 +16,6 @@ if (container) {
       requestId={requestId}
       requestName={requestName}
       folderId={folderId}
-    />
+    />,
   );
 }

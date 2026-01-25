@@ -51,7 +51,7 @@ const Tooltip: React.FC<{
       ref={triggerRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ display: "inline-flex" }}
+      className="inline-flex"
     >
       {children}
       {show && (
@@ -145,7 +145,7 @@ const ImportDropdown: React.FC<{
   }, [isOpen]);
 
   return (
-    <div className="import-dropdown" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
       <button
         className="header-action-btn"
         onClick={() => setIsOpen(!isOpen)}
@@ -157,18 +157,20 @@ const ImportDropdown: React.FC<{
         </svg>
       </button>
       {isOpen && (
-        <div className="import-dropdown-menu">
-          <div className="import-dropdown-header">Import from</div>
+        <div className="dropdown-menu">
+          <div className="dropdown-header">Import from</div>
           {IMPORT_PROVIDERS.map((provider) => (
             <button
               key={provider.id}
-              className="import-dropdown-item"
+              className="dropdown-item"
               onClick={() => {
                 onSelect(provider.id);
                 setIsOpen(false);
               }}
             >
-              <span className="import-dropdown-icon">{provider.icon}</span>
+              <span className="flex items-center justify-center w-5 h-5 opacity-80">
+                {provider.icon}
+              </span>
               <span>{provider.name}</span>
             </button>
           ))}
@@ -237,9 +239,12 @@ const ExportDropdown: React.FC<{
   };
 
   return (
-    <div className="export-dropdown" ref={dropdownRef}>
+    <div className="relative inline-flex" ref={dropdownRef}>
       <Tooltip text="Export Collection">
-        <button className="action-btn export-btn" onClick={handleClick}>
+        <button
+          className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-sky-500/10 hover:text-sky-400 hover:shadow-glow"
+          onClick={handleClick}
+        >
           <svg
             width="14"
             height="14"
@@ -254,19 +259,21 @@ const ExportDropdown: React.FC<{
         </button>
       </Tooltip>
       {isOpen && (
-        <div className="export-dropdown-menu">
-          <div className="export-dropdown-header">Export as</div>
+        <div className="dropdown-menu min-w-[160px]">
+          <div className="dropdown-header">Export as</div>
           {EXPORT_FORMATS.map((format) => (
             <button
               key={format.id}
-              className="export-dropdown-item"
+              className="dropdown-item"
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(folderId, format.id);
                 setIsOpen(false);
               }}
             >
-              <span className="export-dropdown-icon">{format.icon}</span>
+              <span className="flex items-center justify-center w-5 h-5 opacity-80">
+                {format.icon}
+              </span>
               <span>{format.name}</span>
             </button>
           ))}
@@ -279,7 +286,7 @@ const ExportDropdown: React.FC<{
 export const Sidebar: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   useEffect(() => {
@@ -335,14 +342,12 @@ export const Sidebar: React.FC = () => {
   const handleAddRequest = (e: React.MouseEvent, folderId: string) => {
     e.stopPropagation();
     vscode.postMessage({ type: "createRequest", folderId });
-    // Auto-expand folder
     setExpandedFolders((prev) => new Set(prev).add(folderId));
   };
 
   const handleAddSubfolder = (e: React.MouseEvent, parentFolderId: string) => {
     e.stopPropagation();
     vscode.postMessage({ type: "createSubfolder", parentFolderId });
-    // Auto-expand parent folder
     setExpandedFolders((prev) => new Set(prev).add(parentFolderId));
   };
 
@@ -358,7 +363,7 @@ export const Sidebar: React.FC = () => {
   const handleDeleteRequest = (
     e: React.MouseEvent,
     requestId: string,
-    folderId: string
+    folderId: string,
   ) => {
     e.stopPropagation();
     vscode.postMessage({ type: "deleteRequest", requestId, folderId });
@@ -390,9 +395,9 @@ export const Sidebar: React.FC = () => {
     folder,
     depth = 0,
   }) => (
-    <div key={folder.id} className="folder-container">
+    <div key={folder.id} className="mb-0.5">
       <div
-        className="folder-item"
+        className="group flex items-center gap-2.5 py-2.5 px-3 mb-1 cursor-pointer rounded-lg transition-all duration-200 border border-transparent hover:bg-glass hover:border-glass relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-restlab-gradient before:rounded-r before:transition-all before:duration-200 hover:before:h-[60%] focus:outline-none focus:border-sky-400 focus:bg-sky-500/10 focus:before:h-[80%]"
         onClick={() => handleToggleFolder(folder.id)}
         role="button"
         tabIndex={0}
@@ -403,8 +408,8 @@ export const Sidebar: React.FC = () => {
           height="12"
           viewBox="0 0 24 24"
           fill="currentColor"
-          className={`chevron ${
-            expandedFolders.has(folder.id) ? "expanded" : ""
+          className={`flex-shrink-0 transition-transform duration-150 opacity-60 ${
+            expandedFolders.has(folder.id) ? "rotate-90" : ""
           }`}
         >
           <path d="M9 18l6-6-6-6" />
@@ -418,15 +423,17 @@ export const Sidebar: React.FC = () => {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="folder-icon"
+          className="flex-shrink-0 text-vscode transition-colors duration-150 group-hover:text-sky-400 group-hover:drop-shadow-[0_0_4px_rgba(56,189,248,0.4)]"
         >
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
-        <span className="folder-name">{folder.name}</span>
-        <div className="folder-actions">
+        <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium">
+          {folder.name}
+        </span>
+        <div className="flex items-center gap-0.5 ml-auto">
           <Tooltip text="Add Subfolder">
             <button
-              className="action-btn add-subfolder-btn"
+              className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-indigo-500/10 hover:text-indigo-400 hover:shadow-[0_0_8px_rgba(99,102,241,0.3)]"
               onClick={(e) => handleAddSubfolder(e, folder.id)}
             >
               <svg
@@ -445,7 +452,7 @@ export const Sidebar: React.FC = () => {
           </Tooltip>
           <Tooltip text="Add Request">
             <button
-              className="action-btn add-request-btn"
+              className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-sky-500/10 hover:text-sky-400 hover:shadow-glow"
               onClick={(e) => handleAddRequest(e, folder.id)}
             >
               <svg
@@ -463,7 +470,7 @@ export const Sidebar: React.FC = () => {
           </Tooltip>
           <Tooltip text="Collection Settings">
             <button
-              className="action-btn settings-btn"
+              className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-blue-500/10 hover:text-blue-500 hover:shadow-[0_0_8px_rgba(59,130,246,0.3)]"
               onClick={(e) => handleOpenFolder(e, folder)}
             >
               <svg
@@ -485,7 +492,7 @@ export const Sidebar: React.FC = () => {
           />
           <Tooltip text="Delete Collection">
             <button
-              className="action-btn delete-btn"
+              className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-red-500/10 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.3)]"
               onClick={(e) => handleDeleteFolder(e, folder.id)}
             >
               <svg
@@ -505,7 +512,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {expandedFolders.has(folder.id) && (
-        <div className="folder-contents">
+        <div className="relative before:content-[''] before:absolute before:left-5 before:top-0 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-white/10 before:to-transparent">
           {/* Render subfolders first */}
           {folder.subfolders &&
             folder.subfolders.map((subfolder) => (
@@ -517,20 +524,17 @@ export const Sidebar: React.FC = () => {
             ))}
 
           {/* Render requests */}
-          <div
-            className="requests-list"
-            style={{ paddingLeft: `${depth * 16}px` }}
-          >
+          <div className="pl-5" style={{ paddingLeft: `${20 + depth * 16}px` }}>
             {(!folder.requests || folder.requests.length === 0) &&
             (!folder.subfolders || folder.subfolders.length === 0) ? (
-              <div className="empty-requests">
+              <div className="py-2 px-3 text-xs text-vscode-muted opacity-70 italic">
                 <span>No items yet</span>
               </div>
             ) : (
               folder.requests?.map((request) => (
                 <div
                   key={request.id}
-                  className="request-item"
+                  className="group flex items-center gap-2 py-2 px-2.5 mb-0.5 cursor-pointer rounded-md transition-all duration-200 border border-transparent ml-2.5 relative before:content-[''] before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-0 before:bg-restlab-gradient before:rounded-sm before:transition-all before:duration-200 hover:bg-glass hover:border-glass hover:before:h-1/2"
                   onClick={() => handleOpenRequest(request)}
                   role="button"
                   tabIndex={0}
@@ -540,24 +544,27 @@ export const Sidebar: React.FC = () => {
                   >
                     {request.method}
                   </span>
-                  <span className="request-name">{request.name}</span>
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
+                    {request.name}
+                  </span>
                   <Tooltip text="Delete Request">
                     <button
-                      className="action-btn delete-btn"
+                      title="Delete Request"
+                      className="action-btn w-5 h-5 ml-auto group-hover:opacity-60 hover:!opacity-100 hover:bg-red-500/10 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.3)]"
                       onClick={(e) =>
                         handleDeleteRequest(e, request.id, folder.id)
                       }
                     >
                       <svg
-                        width="12"
-                        height="12"
+                        width="14"
+                        height="14"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
                       >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
                     </button>
                   </Tooltip>
@@ -571,12 +578,14 @@ export const Sidebar: React.FC = () => {
   );
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <h2>RESTLab</h2>
-        <div className="header-actions">
+    <div className="flex flex-col h-screen">
+      <div className="p-4 border-b border-glass bg-gradient-to-b from-sky-500/5 to-transparent relative after:content-[''] after:absolute after:-bottom-px after:left-4 after:right-4 after:h-px after:bg-restlab-gradient after:opacity-30">
+        <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-gradient mb-4 before:content-[''] before:inline-block before:w-2 before:h-2 before:bg-restlab-gradient before:rounded-sm before:shadow-glow">
+          RESTLab
+        </h2>
+        <div className="flex items-center gap-2">
           <button
-            className="create-folder-btn"
+            className="btn-primary"
             onClick={handleCreateFolder}
             title="Create Collection"
           >
@@ -590,13 +599,11 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      <div className="folder-list">
+      <div className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
         {folders.length === 0 ? (
-          <div className="empty-state">
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
             <svg
-              className="empty-state-icon"
-              width="64"
-              height="64"
+              className="w-16 h-16 mb-4 opacity-30 text-vscode"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -608,8 +615,10 @@ export const Sidebar: React.FC = () => {
               <line x1="12" y1="11" x2="12" y2="17" />
               <line x1="9" y1="14" x2="15" y2="14" />
             </svg>
-            <p>No collections yet</p>
-            <p className="hint">Create your first collection to get started</p>
+            <p className="mb-1 text-vscode font-medium">No collections yet</p>
+            <p className="text-xs text-vscode-muted opacity-80">
+              Create your first collection to get started
+            </p>
           </div>
         ) : (
           <>

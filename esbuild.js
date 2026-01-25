@@ -1,7 +1,42 @@
 const esbuild = require("esbuild");
 const path = require("path");
+const postcss = require("postcss");
+const tailwindcss = require("@tailwindcss/postcss");
+const autoprefixer = require("autoprefixer");
+const fs = require("fs");
 
 const isWatch = process.argv.includes("--watch");
+
+// PostCSS plugin for esbuild to process Tailwind CSS
+const postcssPlugin = {
+  name: "postcss",
+  setup(build) {
+    build.onLoad({ filter: /\.css$/ }, async (args) => {
+      const css = await fs.promises.readFile(args.path, "utf8");
+
+      // Only process files that contain @tailwind or @import "tailwindcss" directives
+      if (
+        css.includes("@tailwind") ||
+        css.includes("@apply") ||
+        css.includes("tailwindcss") ||
+        args.path.includes("tailwind")
+      ) {
+        const result = await postcss([tailwindcss, autoprefixer]).process(css, {
+          from: args.path,
+        });
+        return {
+          contents: result.css,
+          loader: "css",
+        };
+      }
+
+      return {
+        contents: css,
+        loader: "css",
+      };
+    });
+  },
+};
 
 // Extension build config
 const extensionConfig = {
@@ -22,10 +57,10 @@ const sidebarConfig = {
   format: "iife",
   platform: "browser",
   sourcemap: true,
+  plugins: [postcssPlugin],
   loader: {
     ".tsx": "tsx",
     ".ts": "ts",
-    ".css": "css",
     ".ttf": "file",
     ".woff": "file",
     ".woff2": "file",
@@ -40,10 +75,10 @@ const editorConfig = {
   format: "iife",
   platform: "browser",
   sourcemap: true,
+  plugins: [postcssPlugin],
   loader: {
     ".tsx": "tsx",
     ".ts": "ts",
-    ".css": "css",
     ".ttf": "file",
     ".woff": "file",
     ".woff2": "file",
@@ -71,10 +106,10 @@ const requestConfig = {
   format: "esm",
   platform: "browser",
   sourcemap: true,
+  plugins: [postcssPlugin],
   loader: {
     ".tsx": "tsx",
     ".ts": "ts",
-    ".css": "css",
     ".ttf": "file",
     ".woff": "file",
     ".woff2": "file",
