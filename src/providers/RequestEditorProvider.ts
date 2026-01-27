@@ -25,7 +25,7 @@ export class RequestEditorProvider {
     requestId: string,
     requestName: string,
     folderId: string,
-    sidebarProvider?: SidebarProvider
+    sidebarProvider?: SidebarProvider,
   ) {
     // Check if panel already exists for this request
     const existingPanel = RequestEditorProvider.openPanels.get(requestId);
@@ -43,7 +43,9 @@ export class RequestEditorProvider {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [context.extensionUri],
-      }
+        enableCommandUris: true,
+        enableFindWidget: true,
+      },
     );
 
     // Store the panel reference
@@ -77,7 +79,7 @@ export class RequestEditorProvider {
       panel.webview,
       requestId,
       requestName,
-      folderId
+      folderId,
     );
 
     // Handle messages from webview
@@ -86,7 +88,7 @@ export class RequestEditorProvider {
         case "getConfig":
           // Always read fresh config from globalState to get latest folder settings
           const savedRequest = context.globalState.get<RequestConfig>(
-            `restlab.request.${requestId}`
+            `restlab.request.${requestId}`,
           );
 
           // Get inherited config from sidebar provider (walks up parent chain)
@@ -116,14 +118,14 @@ export class RequestEditorProvider {
         case "saveConfig":
           await context.globalState.update(
             `restlab.request.${requestId}`,
-            message.config
+            message.config,
           );
           // Update method in sidebar if it changed
           if (sidebarProvider && message.config.method) {
             sidebarProvider.updateRequestMethod(
               folderId,
               requestId,
-              message.config.method
+              message.config.method,
             );
           }
           // Update name in sidebar if it changed
@@ -131,7 +133,7 @@ export class RequestEditorProvider {
             sidebarProvider.updateRequestName(
               folderId,
               requestId,
-              message.config.name
+              message.config.name,
             );
             // Update panel title
             panel.title = `🔗 ${message.config.name}`;
@@ -144,7 +146,7 @@ export class RequestEditorProvider {
               message.url,
               message.headers,
               message.body,
-              message.formData
+              message.formData,
             );
             panel.webview.postMessage({
               type: "responseReceived",
@@ -180,10 +182,10 @@ export class RequestEditorProvider {
           if (uri) {
             await vscode.workspace.fs.writeFile(
               uri,
-              Buffer.from(message.content, "utf-8")
+              Buffer.from(message.content, "utf-8"),
             );
             vscode.window.showInformationMessage(
-              `Response saved to ${uri.fsPath}`
+              `Response saved to ${uri.fsPath}`,
             );
           }
           break;
@@ -202,7 +204,7 @@ export class RequestEditorProvider {
       type: string;
       fileName?: string;
       fileData?: string;
-    }[]
+    }[],
   ): Promise<{
     status: number;
     statusText: string;
@@ -355,7 +357,7 @@ export class RequestEditorProvider {
       }
 
       throw new Error(
-        errorCode ? `[${errorCode}] ${errorMessage}` : errorMessage
+        errorCode ? `[${errorCode}] ${errorMessage}` : errorMessage,
       );
     }
   }
@@ -364,23 +366,23 @@ export class RequestEditorProvider {
     webview: vscode.Webview,
     requestId: string,
     requestName: string,
-    folderId: string
+    folderId: string,
   ): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "dist",
         "request",
-        "index.js"
-      )
+        "index.js",
+      ),
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "dist",
         "request",
-        "index.css"
-      )
+        "index.css",
+      ),
     );
 
     const nonce = getNonce();

@@ -76,6 +76,7 @@ type MonacoEditorProps = {
   readOnly?: boolean;
   showHint?: string;
   formatOnChange?: boolean;
+  editorInstanceRef?: React.MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
 };
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -87,6 +88,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   readOnly = false,
   showHint,
   formatOnChange = false,
+  editorInstanceRef,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -132,9 +134,14 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       renderValidationDecorations: "on",
       formatOnType: !readOnly && formatOnChange,
       formatOnPaste: !readOnly && formatOnChange,
+      contextmenu: true,
+      quickSuggestions: false,
     });
 
     monacoRef.current = editor;
+    if (editorInstanceRef) {
+      editorInstanceRef.current = editor;
+    }
 
     const changeDisposable = editor.onDidChangeModelContent(() => {
       if (isExternalUpdate.current) return;
@@ -150,7 +157,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           if (!editorInstance) return;
           isFormatting.current = true;
           const formatAction = editorInstance.getAction(
-            "editor.action.formatDocument"
+            "editor.action.formatDocument",
           );
           if (formatAction) {
             await formatAction.run();
@@ -160,8 +167,44 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       }
     });
 
+    // Add custom paste handler for webview clipboard access
+    const pasteDisposable = editor.onKeyDown((e) => {
+      if (
+        !readOnly &&
+        (e.ctrlKey || e.metaKey) &&
+        e.keyCode === monaco.KeyCode.KeyV
+      ) {
+        e.preventDefault();
+        navigator.clipboard
+          .readText()
+          .then((text) => {
+            if (text) {
+              const selection = editor.getSelection();
+              if (selection) {
+                editor.executeEdits("paste", [
+                  {
+                    range: selection,
+                    text: text,
+                    forceMoveMarkers: true,
+                  },
+                ]);
+              }
+            }
+          })
+          .catch(() => {
+            // Fallback: trigger default paste action
+            editor.trigger(
+              "keyboard",
+              "editor.action.clipboardPasteAction",
+              {},
+            );
+          });
+      }
+    });
+
     return () => {
       changeDisposable.dispose();
+      pasteDisposable.dispose();
       if (formatTimer.current) {
         window.clearTimeout(formatTimer.current);
       }
@@ -169,8 +212,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       model.dispose();
       monacoRef.current = null;
       modelRef.current = null;
+      if (editorInstanceRef) {
+        editorInstanceRef.current = null;
+      }
     };
-  }, []);
+  }, [readOnly, editorInstanceRef]);
 
   useEffect(() => {
     const model = modelRef.current;
@@ -211,7 +257,7 @@ const stripJsonComments = (jsonString: string): string => {
 
   const lines = jsonString.split("\n");
   const nonCommentLines = lines.filter(
-    (line) => !line.trimStart().startsWith("//")
+    (line) => !line.trimStart().startsWith("//"),
   );
   return nonCommentLines.join("\n");
 };
@@ -344,7 +390,7 @@ const AutocompleteInput: React.FC<{
   useEffect(() => {
     if (value) {
       const filtered = suggestions.filter((s) =>
-        s.toLowerCase().includes(value.toLowerCase())
+        s.toLowerCase().includes(value.toLowerCase()),
       );
       setFilteredSuggestions(filtered);
     } else {
@@ -373,7 +419,7 @@ const AutocompleteInput: React.FC<{
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveSuggestionIndex((prev) =>
-        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+        prev < filteredSuggestions.length - 1 ? prev + 1 : prev,
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -449,16 +495,19 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const [activeTab, setActiveTab] = useState<"headers" | "body">("headers");
   const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
   const [isSaved, setIsSaved] = useState(true);
+  const bodyEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(
+    null,
+  );
 
   const requestEditorLanguage = useMemo(
     () => getEditorLanguageFromContentType(config.contentType),
-    [config.contentType]
+    [config.contentType],
   );
 
   const responseContentType = response?.headers["content-type"];
   const responseEditorLanguage = useMemo(
     () => getEditorLanguageFromContentType(responseContentType),
-    [responseContentType]
+    [responseContentType],
   );
 
   const responseBodyValue = useMemo(() => {
@@ -472,7 +521,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
   // Layout and resizable panel state
   const [splitLayout, setSplitLayout] = useState<"horizontal" | "vertical">(
-    "horizontal"
+    "horizontal",
   );
   const [requestSize, setRequestSize] = useState(50); // percentage for split view
   const [isResizing, setIsResizing] = useState(false);
@@ -528,7 +577,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
   const toggleLayout = () => {
     setSplitLayout((prev) =>
-      prev === "horizontal" ? "vertical" : "horizontal"
+      prev === "horizontal" ? "vertical" : "horizontal",
     );
     setRequestSize(50); // Reset to 50% when switching layouts
   };
@@ -587,7 +636,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     // Add Content-Type header if set and not already present
     if (config.contentType) {
       const hasContentType = allHeaders.some(
-        (h) => h.key.toLowerCase() === "content-type"
+        (h) => h.key.toLowerCase() === "content-type",
       );
       if (!hasContentType) {
         allHeaders = [
@@ -654,7 +703,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const handleUpdateHeader = (
     index: number,
     field: "key" | "value",
-    value: string
+    value: string,
   ) => {
     setConfig((prev) => {
       const newHeaders = [...(prev.headers || [])];
@@ -686,7 +735,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   const handleUpdateFormData = (
     index: number,
     field: "key" | "value",
-    value: string
+    value: string,
   ) => {
     setConfig((prev) => {
       const newFormData = [...(prev.formData || [])];
@@ -744,7 +793,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
   // Convert form data to body string for sending
   const formDataToBody = (
     formData: FormDataItem[],
-    contentType?: string
+    contentType?: string,
   ): string => {
     const items = formData.filter((item) => item.key.trim());
 
@@ -754,7 +803,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         .filter((item) => item.type !== "file")
         .map(
           (item) =>
-            `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`
+            `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`,
         )
         .join("&");
     }
@@ -765,7 +814,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
       .filter((item) => item.type !== "file")
       .map(
         (item) =>
-          `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`
+          `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`,
       )
       .join("&");
   };
@@ -840,7 +889,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     // Add Content-Type if set
     if (config.contentType) {
       const hasContentType = allHeaders.some(
-        (h) => h.key.toLowerCase() === "content-type"
+        (h) => h.key.toLowerCase() === "content-type",
       );
       if (!hasContentType) {
         allHeaders = [
@@ -899,15 +948,50 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     });
   };
 
-  const handleBeautifyJson = () => {
+  const handleBeautifyJson = async () => {
     if (!config.body) return;
+
+    // Try to use Monaco's formatter directly if editor is available
+    const bodyEditor = bodyEditorRef.current;
+    if (bodyEditor && config.contentType === "application/json") {
+      try {
+        // First try Monaco's format action
+        const formatAction = bodyEditor.getAction(
+          "editor.action.formatDocument",
+        );
+        if (formatAction) {
+          await formatAction.run();
+          // Check if content actually changed (formatting happened)
+          const currentValue = bodyEditor.getValue();
+          if (currentValue !== config.body) {
+            vscode.postMessage({
+              type: "showInfo",
+              message: "JSON formatted successfully!",
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        // Fall through to manual formatting
+        console.error("Monaco format failed:", error);
+      }
+    }
+
+    // Fallback to manual formatting
     try {
       const formatted = formatJson(config.body);
-      handleConfigChange({ body: formatted });
-      vscode.postMessage({
-        type: "showInfo",
-        message: "JSON formatted successfully!",
-      });
+      if (formatted !== config.body) {
+        handleConfigChange({ body: formatted });
+        vscode.postMessage({
+          type: "showInfo",
+          message: "JSON formatted successfully!",
+        });
+      } else {
+        vscode.postMessage({
+          type: "showInfo",
+          message: "JSON is already formatted",
+        });
+      }
     } catch (error) {
       vscode.postMessage({
         type: "showError",
@@ -1089,9 +1173,8 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           style={
             response || isLoading
               ? {
-                  [splitLayout === "horizontal"
-                    ? "height"
-                    : "width"]: `${requestSize}%`,
+                  [splitLayout === "horizontal" ? "height" : "width"]:
+                    `${requestSize}%`,
                 }
               : undefined
           }
@@ -1229,7 +1312,10 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                       <button
                         className="beautify-btn"
                         onClick={handleBeautifyJson}
-                        disabled={!config.body || config.contentType !== "application/json"}
+                        disabled={
+                          !config.body ||
+                          config.contentType !== "application/json"
+                        }
                         title="Format JSON (Beautify)"
                       >
                         <svg
@@ -1287,7 +1373,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                                   handleUpdateFormData(
                                     index,
                                     "key",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Field name"
@@ -1349,7 +1435,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                                     onChange={(e) =>
                                       handleFileSelect(
                                         index,
-                                        e.target.files?.[0] || null
+                                        e.target.files?.[0] || null,
                                       )
                                     }
                                   />
@@ -1380,7 +1466,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                                     handleUpdateFormData(
                                       index,
                                       "value",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   placeholder="Value"
@@ -1428,6 +1514,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                           config.contentType === "application/json"
                         }
                         showHint="Ctrl+F search • Ctrl+/ comment • Alt+Shift+F format"
+                        editorInstanceRef={bodyEditorRef}
                       />
                     )}
                   </div>
@@ -1463,7 +1550,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                   <div className="response-meta">
                     <span
                       className={`status-badge ${getStatusColor(
-                        response.status
+                        response.status,
                       )}`}
                     >
                       {response.status === 0
@@ -1635,7 +1722,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                                   <span className="header-name">{key}</span>
                                   <span className="header-value">{value}</span>
                                 </div>
-                              )
+                              ),
                             )
                           )}
                         </div>
