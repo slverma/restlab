@@ -1,3 +1,4 @@
+import React from "react";
 const CopyIcon = () => (
   <svg
     width="14"

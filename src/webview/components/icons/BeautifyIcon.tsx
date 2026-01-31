@@ -1,3 +1,4 @@
+import React from "react";
 const BeautifyIcon = () => (
   <svg
     width="16"

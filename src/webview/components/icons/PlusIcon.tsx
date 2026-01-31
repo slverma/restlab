@@ -1,3 +1,4 @@
+import React from "react";
 const PlusIcon = () => (
   <svg
     width="14"

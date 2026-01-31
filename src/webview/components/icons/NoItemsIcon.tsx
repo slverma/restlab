@@ -1,3 +1,4 @@
+import React from "react";
 const NoItemsIcon = () => (
   <svg
     className="w-16 h-16 mb-4 opacity-30 text-vscode"
