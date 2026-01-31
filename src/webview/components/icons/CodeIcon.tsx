@@ -1,3 +1,4 @@
+import React from "react";
 const CodeIcon = () => (
   <svg
     width="16"

@@ -16,7 +16,7 @@ import CodeIcon from "../components/icons/CodeIcon";
 import SplitIcon from "../components/icons/SplitIcon";
 import { CONTENT_TYPES, HTTP_METHODS } from "../config";
 import HeaderTab from "./HeaderTab";
-import MonacoEditor from "./BodyEditor";
+import BodyEditor from "./BodyEditor";
 import DownloadIcon from "../components/icons/DownloadIcon";
 import WarningIcon from "../components/icons/WarningIcon";
 import BeautifyIcon from "../components/icons/BeautifyIcon";
@@ -223,7 +223,7 @@ const RequestEditorContent: React.FC = () => {
                     {isFormContentType(config.contentType) ? (
                       <FormFieldEditor />
                     ) : (
-                      <MonacoEditor
+                      <BodyEditor
                         value={config.body || ""}
                         onChange={(value) =>
                           handleConfigChange({ body: value })
@@ -385,7 +385,7 @@ const RequestEditorContent: React.FC = () => {
                             <p className="error-message">{response.data}</p>
                           </div>
                         ) : (
-                          <MonacoEditor
+                          <BodyEditor
                             value={responseBodyValue}
                             language={responseEditorLanguage}
                             readOnly

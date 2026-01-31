@@ -1,26 +1,5 @@
 @import "monaco-editor/min/vs/editor/editor.main.css";
 
-/* Fix for folding icons - ensure codicon font displays properly with explicit unicode content */
-.monaco-editor .margin-view-overlays .codicon.codicon-folding-expanded::before,
-.monaco-editor
-  .margin-view-overlays
-  .codicon.codicon-folding-manual-expanded::before {
-  content: "\eb90" !important; /* chevron-down unicode from codicon font */
-  font-family: "codicon" !important;
-  font-size: 16px !important;
-  display: inline-block !important;
-}
-
-.monaco-editor .margin-view-overlays .codicon.codicon-folding-collapsed::before,
-.monaco-editor
-  .margin-view-overlays
-  .codicon.codicon-folding-manual-collapsed::before {
-  content: "\eb9e" !important; /* chevron-right unicode from codicon font */
-  font-family: "codicon" !important;
-  font-size: 16px !important;
-  display: inline-block !important;
-}
-
 :root {
   --vscode-font-family: var(
     --vscode-font-family,
@@ -271,7 +250,8 @@ body {
 .url-input:focus {
   outline: none;
   border-color: var(--restlab-accent);
-  box-shadow: 0 0 0 3px var(--restlab-accent-subtle),
+  box-shadow:
+    0 0 0 3px var(--restlab-accent-subtle),
     0 0 20px -5px var(--restlab-accent-glow);
 }
 

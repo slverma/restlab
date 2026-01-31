@@ -1,3 +1,4 @@
+import React from "react";
 const SplitIcon = ({ splitLayout = "horizontal" }) => (
   <svg
     width="16"

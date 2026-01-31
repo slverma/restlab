@@ -1,3 +1,4 @@
+import React from "react";
 const SendIcon = () => (
   <svg
     width="16"

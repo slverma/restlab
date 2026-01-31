@@ -1,3 +1,4 @@
+import React from "react";
 import AutocompleteInput from "../components/AutocompleteInput";
 import PlusIcon from "../components/icons/PlusIcon";
 import TrashIcon from "../components/icons/TrashIcon";
