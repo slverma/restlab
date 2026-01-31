@@ -3,16 +3,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import FormData from "form-data";
 import { getNonce } from "../utils/getNonce";
 import { SidebarProvider } from "./SidebarProvider";
-
-interface RequestConfig {
-  id: string;
-  name: string;
-  folderId: string;
-  method: string;
-  url: string;
-  headers?: { key: string; value: string }[];
-  body?: string;
-}
+import { RequestConfig } from "../webview/types/internal.types";
 
 export class RequestEditorProvider {
   // Track open panels by request ID
@@ -392,13 +383,13 @@ export class RequestEditorProvider {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${webview.cspSource}; worker-src ${webview.cspSource} blob:;">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${webview.cspSource} 'unsafe-eval'; font-src ${webview.cspSource} data:; img-src ${webview.cspSource} data: blob:; worker-src blob:;">
         <link href="${styleUri}" rel="stylesheet">
         <title>${requestName}</title>
       </head>
       <body>
         <div id="root" data-request-id="${requestId}" data-request-name="${requestName}" data-folder-id="${folderId}"></div>
-        <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
+        <script nonce="${nonce}" src="${scriptUri}"></script>
       </body>
       </html>`;
   }

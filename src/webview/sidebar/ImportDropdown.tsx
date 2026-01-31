@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ImportProvider } from "../types/internal.types";
-import RESTLabIcon from "./icons/RestLabIcon";
-import PostmanIcon from "./icons/PostmanIcon";
-import ThunderClientIcon from "./icons/ThunderClientIcon";
+import RESTLabIcon from "../components/icons/RestLabIcon";
+import PostmanIcon from "../components/icons/PostmanIcon";
+import ThunderClientIcon from "../components/icons/ThunderClientIcon";
 
 const IMPORT_PROVIDERS: ImportProvider[] = [
   {
