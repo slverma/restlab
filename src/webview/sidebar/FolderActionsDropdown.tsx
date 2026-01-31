@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Folder } from "../types/internal.types";
-import Tooltip from "./Tooltip";
-import ThunderClientIcon from "./icons/ThunderClientIcon";
-import PostmanIcon from "./icons/PostmanIcon";
-import RESTLabIcon from "./icons/RestLabIcon";
-import TrashIcon from "./icons/TrashIcon";
+import Tooltip from "../components/Tooltip";
+import ThunderClientIcon from "../components/icons/ThunderClientIcon";
+import PostmanIcon from "../components/icons/PostmanIcon";
+import RESTLabIcon from "../components/icons/RestLabIcon";
+import TrashIcon from "../components/icons/TrashIcon";
 
 // Export formats for extensibility
 export const EXPORT_FORMATS = [

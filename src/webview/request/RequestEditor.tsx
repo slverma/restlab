@@ -1,9 +1,37 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
 import "monaco-editor/esm/vs/language/html/monaco.contribution.js";
 import "monaco-editor/esm/vs/language/css/monaco.contribution.js";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution.js";
+import AutocompleteInput from "../components/AutocompleteInput";
+import {
+  FolderConfig,
+  FormDataItem,
+  RequestConfig,
+  RequestEditorProps,
+  ResponseData,
+} from "../types/internal.types";
+import { generateCurlCommand } from "../helpers/curl";
+import {
+  formDataToBody,
+  hasFileFields,
+  isFormContentType,
+  stripJsonComments,
+} from "../helpers/helper";
+import FormFieldEditor from "./FormFieldEditor";
+import SendIcon from "../components/icons/SendIcon";
+import SaveIcon from "../components/icons/SaveIcon";
+import CodeIcon from "../components/icons/CodeIcon";
+import SplitIcon from "../components/icons/SplitIcon";
+import { COMMON_HEADERS, CONTENT_TYPES, HTTP_METHODS } from "../config";
+import HeaderTab from "./HeaderTab";
 
 const editorWorkerUrl = new URL("editor.worker.js", import.meta.url);
 const jsonWorkerUrl = new URL("json.worker.js", import.meta.url);
@@ -251,17 +279,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   );
 };
 
-// Helper function to strip comments from JSON body before sending
-const stripJsonComments = (jsonString: string): string => {
-  if (!jsonString) return jsonString;
-
-  const lines = jsonString.split("\n");
-  const nonCommentLines = lines.filter(
-    (line) => !line.trimStart().startsWith("//"),
-  );
-  return nonCommentLines.join("\n");
-};
-
 const getEditorLanguageFromContentType = (contentType?: string) => {
   if (!contentType) return "plaintext";
   const ct = contentType.toLowerCase();
@@ -283,89 +300,6 @@ const formatJson = (data: string) => {
   }
 };
 
-interface Header {
-  key: string;
-  value: string;
-}
-
-interface FormDataItem {
-  key: string;
-  value: string;
-  type: "text" | "file";
-  fileName?: string;
-  fileData?: string; // base64 encoded
-}
-
-interface RequestConfig {
-  id: string;
-  name: string;
-  folderId: string;
-  method: string;
-  url: string;
-  headers?: Header[];
-  body?: string;
-  contentType?: string;
-  formData?: FormDataItem[];
-}
-
-interface FolderConfig {
-  baseUrl?: string;
-  headers?: Header[];
-}
-
-interface ResponseData {
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  data: string;
-  time: number;
-  size: number;
-}
-
-interface RequestEditorProps {
-  requestId: string;
-  requestName: string;
-  folderId: string;
-}
-
-const HTTP_METHODS = [
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "HEAD",
-  "OPTIONS",
-];
-
-const COMMON_HEADERS = [
-  "Accept",
-  "Accept-Charset",
-  "Accept-Encoding",
-  "Accept-Language",
-  "Authorization",
-  "Cache-Control",
-  "Content-Type",
-  "Content-Length",
-  "Cookie",
-  "Host",
-  "Origin",
-  "User-Agent",
-  "X-Api-Key",
-  "X-Auth-Token",
-  "X-Request-ID",
-];
-
-const CONTENT_TYPES = [
-  { label: "None", value: "" },
-  { label: "JSON", value: "application/json" },
-  { label: "XML", value: "application/xml" },
-  { label: "Form URL Encoded", value: "application/x-www-form-urlencoded" },
-  { label: "Form Data", value: "multipart/form-data" },
-  { label: "Plain Text", value: "text/plain" },
-  { label: "HTML", value: "text/html" },
-];
-
 declare function acquireVsCodeApi(): {
   postMessage: (message: unknown) => void;
   getState: () => unknown;
@@ -373,101 +307,6 @@ declare function acquireVsCodeApi(): {
 };
 
 const vscode = acquireVsCodeApi();
-
-const AutocompleteInput: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  suggestions: string[];
-  className?: string;
-}> = ({ value, onChange, placeholder, suggestions, className }) => {
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (value) {
-      const filtered = suggestions.filter((s) =>
-        s.toLowerCase().includes(value.toLowerCase()),
-      );
-      setFilteredSuggestions(filtered);
-    } else {
-      setFilteredSuggestions(suggestions);
-    }
-    setActiveSuggestionIndex(0);
-  }, [value, suggestions]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveSuggestionIndex((prev) =>
-        prev < filteredSuggestions.length - 1 ? prev + 1 : prev,
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
-    } else if (e.key === "Enter" && filteredSuggestions.length > 0) {
-      e.preventDefault();
-      onChange(filteredSuggestions[activeSuggestionIndex]);
-      setShowSuggestions(false);
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-    }
-  };
-
-  return (
-    <div className="autocomplete-container">
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setShowSuggestions(true)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className={className}
-        autoComplete="off"
-      />
-      {showSuggestions && filteredSuggestions.length > 0 && (
-        <div ref={suggestionsRef} className="autocomplete-dropdown">
-          {filteredSuggestions.map((suggestion, index) => (
-            <div
-              key={suggestion}
-              className={`autocomplete-item ${
-                index === activeSuggestionIndex ? "active" : ""
-              }`}
-              onClick={() => {
-                onChange(suggestion);
-                setShowSuggestions(false);
-              }}
-              onMouseEnter={() => setActiveSuggestionIndex(index)}
-            >
-              {suggestion}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const RequestEditor: React.FC<RequestEditorProps> = ({
   requestId,
@@ -486,9 +325,6 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     formData: [],
   });
 
-  // Check if content type is form-based
-  const isFormContentType = (ct?: string) =>
-    ct === "application/x-www-form-urlencoded" || ct === "multipart/form-data";
   const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -790,39 +626,6 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Convert form data to body string for sending
-  const formDataToBody = (
-    formData: FormDataItem[],
-    contentType?: string,
-  ): string => {
-    const items = formData.filter((item) => item.key.trim());
-
-    // For URL encoded, only include text fields
-    if (contentType === "application/x-www-form-urlencoded") {
-      return items
-        .filter((item) => item.type !== "file")
-        .map(
-          (item) =>
-            `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`,
-        )
-        .join("&");
-    }
-
-    // For multipart/form-data with files, we need to send via extension
-    // For now, send text fields as URL encoded
-    return items
-      .filter((item) => item.type !== "file")
-      .map(
-        (item) =>
-          `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`,
-      )
-      .join("&");
-  };
-
-  // Check if form has files
-  const hasFileFields = (formData?: FormDataItem[]) =>
-    (formData || []).some((item) => item.type === "file" && item.fileData);
-
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return "status-success";
     if (status >= 300 && status < 400) return "status-redirect";
@@ -868,85 +671,14 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
     }
   };
 
-  const generateCurlCommand = (): string => {
-    // Build full URL
-    const fullUrl = folderConfig.baseUrl
-      ? `${folderConfig.baseUrl}${config.url}`
-      : config.url;
-
-    // Start with curl command
-    let curl = `curl -X ${config.method}`;
-
-    // Add URL (escaped)
-    curl += ` '${fullUrl.replace(/'/g, "'\\''")}'`;
-
-    // Combine headers
-    let allHeaders = [
-      ...(folderConfig.headers || []),
-      ...(config.headers || []),
-    ].filter((h) => h.key && h.value);
-
-    // Add Content-Type if set
-    if (config.contentType) {
-      const hasContentType = allHeaders.some(
-        (h) => h.key.toLowerCase() === "content-type",
-      );
-      if (!hasContentType) {
-        allHeaders = [
-          { key: "Content-Type", value: config.contentType },
-          ...allHeaders,
-        ];
-      }
-    }
-
-    // Add headers
-    allHeaders.forEach((h) => {
-      curl += ` \\
-  -H '${h.key}: ${h.value.replace(/'/g, "'\\''")}'`;
-    });
-
-    // Add body
-    const methodsWithBody = ["POST", "PUT", "PATCH"];
-    if (methodsWithBody.includes(config.method)) {
-      if (isFormContentType(config.contentType) && config.formData?.length) {
-        if (config.contentType === "multipart/form-data") {
-          // Form data fields
-          config.formData.forEach((item) => {
-            if (item.type === "file" && item.fileName) {
-              curl += ` \\
-  -F '${item.key}=@${item.fileName}'`;
-            } else if (item.key) {
-              curl += ` \\
-  -F '${item.key}=${item.value.replace(/'/g, "'\\''")}'`;
-            }
-          });
-        } else {
-          // URL encoded
-          const body = formDataToBody(config.formData, config.contentType);
-          if (body) {
-            curl += ` \\
-  -d '${body.replace(/'/g, "'\\''")}'`;
-          }
-        }
-      } else if (config.body) {
-        // Strip comments from body for cURL command
-        const cleanBody = stripJsonComments(config.body);
-        curl += ` \\
-  -d '${cleanBody.replace(/'/g, "'\\''")}'`;
-      }
-    }
-
-    return curl;
-  };
-
-  const handleCopyCurl = () => {
-    const curl = generateCurlCommand();
+  const handleCopyCurl = useCallback(() => {
+    const curl = generateCurlCommand(folderConfig, config);
     navigator.clipboard.writeText(curl);
     vscode.postMessage({
       type: "showInfo",
       message: "cURL command copied to clipboard!",
     });
-  };
+  }, [folderConfig, config]);
 
   const handleBeautifyJson = async () => {
     if (!config.body) return;
@@ -1052,23 +784,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           onClick={handleSendRequest}
           disabled={isLoading}
         >
-          {isLoading ? (
-            <span className="loading-spinner"></span>
-          ) : (
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          )}
+          {isLoading ? <span className="loading-spinner"></span> : <SendIcon />}
           <span className="btn-text">Send</span>
         </button>
         <button
@@ -1077,20 +793,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           disabled={isSaved}
           title={isSaved ? "All changes saved" : "Save changes"}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
+          <SaveIcon />
           <span className="btn-text">{isSaved ? "Saved" : "Save"}</span>
         </button>
         <button
@@ -1098,19 +801,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
           onClick={handleCopyCurl}
           title="Copy as cURL command"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="16 18 22 12 16 6" />
-            <polyline points="8 6 2 12 8 18" />
-          </svg>
+          <CodeIcon />
           <span className="btn-text">cURL</span>
         </button>
         {(response || isLoading) && (
@@ -1123,35 +814,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                 : "Switch to stacked view"
             }
           >
-            {splitLayout === "horizontal" ? (
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="12" y1="3" x2="12" y2="21" />
-              </svg>
-            ) : (
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-              </svg>
-            )}
+            <SplitIcon splitLayout={splitLayout} />
           </button>
         )}
       </div>
@@ -1202,92 +865,13 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
 
             <div className="tab-content">
               {activeTab === "headers" && (
-                <div className="headers-section">
-                  {folderConfig.headers && folderConfig.headers.length > 0 && (
-                    <div className="inherited-headers">
-                      <h3>Inherited from Collection</h3>
-                      {folderConfig.headers.map((header, index) => (
-                        <div key={index} className="header-row inherited">
-                          <input
-                            type="text"
-                            value={header.key}
-                            disabled
-                            className="header-key"
-                          />
-                          <input
-                            type="text"
-                            value={header.value}
-                            disabled
-                            className="header-value"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="request-headers">
-                    <div className="section-header">
-                      <h3>Request Headers</h3>
-                      <button className="add-btn" onClick={handleAddHeader}>
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                        Add
-                      </button>
-                    </div>
-
-                    {(config.headers || []).length === 0 ? (
-                      <p className="empty-hint">No custom headers</p>
-                    ) : (
-                      (config.headers || []).map((header, index) => (
-                        <div key={index} className="header-row">
-                          <AutocompleteInput
-                            value={header.key}
-                            onChange={(value) =>
-                              handleUpdateHeader(index, "key", value)
-                            }
-                            placeholder="Header name"
-                            suggestions={COMMON_HEADERS}
-                            className="header-key"
-                          />
-                          <input
-                            type="text"
-                            value={header.value}
-                            onChange={(e) =>
-                              handleUpdateHeader(index, "value", e.target.value)
-                            }
-                            placeholder="Value"
-                            className="header-value"
-                          />
-                          <button
-                            className="remove-btn"
-                            onClick={() => handleRemoveHeader(index)}
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                <HeaderTab
+                  folderConfig={folderConfig}
+                  config={config}
+                  handleAddHeader={handleAddHeader}
+                  handleUpdateHeader={handleUpdateHeader}
+                  handleRemoveHeader={handleRemoveHeader}
+                />
               )}
 
               {activeTab === "body" &&
@@ -1337,170 +921,14 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                     </div>
 
                     {isFormContentType(config.contentType) ? (
-                      <div className="form-data-section">
-                        <div className="section-header">
-                          <h3>Form Fields</h3>
-                          <button
-                            className="add-btn"
-                            onClick={handleAddFormData}
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <line x1="12" y1="5" x2="12" y2="19" />
-                              <line x1="5" y1="12" x2="19" y2="12" />
-                            </svg>
-                            Add Field
-                          </button>
-                        </div>
-
-                        {(config.formData || []).length === 0 ? (
-                          <p className="empty-hint">
-                            No form fields. Click "Add Field" to add one.
-                          </p>
-                        ) : (
-                          (config.formData || []).map((item, index) => (
-                            <div key={index} className="form-data-row">
-                              <input
-                                type="text"
-                                value={item.key}
-                                onChange={(e) =>
-                                  handleUpdateFormData(
-                                    index,
-                                    "key",
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="Field name"
-                                className="form-data-key"
-                              />
-
-                              {config.contentType === "multipart/form-data" && (
-                                <button
-                                  className={`type-toggle ${
-                                    item.type === "file"
-                                      ? "file-type"
-                                      : "text-type"
-                                  }`}
-                                  onClick={() =>
-                                    handleToggleFormDataType(index)
-                                  }
-                                  title={
-                                    item.type === "file"
-                                      ? "Switch to text"
-                                      : "Switch to file"
-                                  }
-                                >
-                                  {item.type === "file" ? (
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                    >
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                      <polyline points="14 2 14 8 20 8" />
-                                    </svg>
-                                  ) : (
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                    >
-                                      <line x1="17" y1="10" x2="3" y2="10" />
-                                      <line x1="21" y1="6" x2="3" y2="6" />
-                                      <line x1="21" y1="14" x2="3" y2="14" />
-                                      <line x1="17" y1="18" x2="3" y2="18" />
-                                    </svg>
-                                  )}
-                                </button>
-                              )}
-
-                              {item.type === "file" ? (
-                                <div className="file-input-wrapper">
-                                  <input
-                                    type="file"
-                                    id={`file-input-${index}`}
-                                    className="file-input-hidden"
-                                    onChange={(e) =>
-                                      handleFileSelect(
-                                        index,
-                                        e.target.files?.[0] || null,
-                                      )
-                                    }
-                                  />
-                                  <label
-                                    htmlFor={`file-input-${index}`}
-                                    className="file-input-label"
-                                  >
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                    >
-                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                      <polyline points="17 8 12 3 7 8" />
-                                      <line x1="12" y1="3" x2="12" y2="15" />
-                                    </svg>
-                                    {item.fileName || "Choose file"}
-                                  </label>
-                                </div>
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={item.value}
-                                  onChange={(e) =>
-                                    handleUpdateFormData(
-                                      index,
-                                      "value",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="Value"
-                                  className="form-data-value"
-                                />
-                              )}
-
-                              <button
-                                className="remove-btn"
-                                onClick={() => handleRemoveFormData(index)}
-                              >
-                                <svg
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                >
-                                  <line x1="18" y1="6" x2="6" y2="18" />
-                                  <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                              </button>
-                            </div>
-                          ))
-                        )}
-
-                        {hasFileFields(config.formData) && (
-                          <p className="file-warning">
-                            ⚠️ File uploads require multipart/form-data. Files
-                            will be sent as base64 encoded.
-                          </p>
-                        )}
-                      </div>
+                      <FormFieldEditor
+                        handleAddFormData={handleAddFormData}
+                        config={config}
+                        handleUpdateFormData={handleUpdateFormData}
+                        handleToggleFormDataType={handleToggleFormDataType}
+                        handleFileSelect={handleFileSelect}
+                        handleRemoveFormData={handleRemoveFormData}
+                      />
                     ) : (
                       <MonacoEditor
                         value={config.body || ""}

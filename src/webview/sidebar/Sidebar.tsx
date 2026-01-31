@@ -3,17 +3,15 @@ import RESTLabIcon from "../components/icons/RestLabIcon";
 import PostmanIcon from "../components/icons/PostmanIcon";
 import ThunderClientIcon from "../components/icons/ThunderClientIcon";
 import { Folder, Request } from "../types/internal.types";
-import FolderActionsDropdown, {
-  EXPORT_FORMATS,
-} from "../components/FolderActionsDropdown";
 import Tooltip from "../components/Tooltip";
 import ChevronIcon from "../components/icons/ChevronIcon";
 import FolderIcon from "../components/icons/FolderIcon";
 import PlusIcon from "../components/icons/PlusIcon";
 import EmptyGlassIcon from "../components/icons/EmptyGlassIcon";
 import NoItemsIcon from "../components/icons/NoItemsIcon";
-import ImportDropdown from "../components/ImportDropdown";
 import TrashIcon from "../components/icons/TrashIcon";
+import FolderActionsDropdown from "./FolderActionsDropdown";
+import ImportDropdown from "./ImportDropdown";
 
 declare function acquireVsCodeApi(): {
   postMessage: (message: unknown) => void;
