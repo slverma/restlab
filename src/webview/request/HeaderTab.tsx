@@ -1,4 +1,6 @@
 import AutocompleteInput from "../components/AutocompleteInput";
+import PlusIcon from "../components/icons/PlusIcon";
+import TrashIcon from "../components/icons/TrashIcon";
 import { COMMON_HEADERS } from "../config";
 import { FolderConfig, RequestConfig } from "../types/internal.types";
 
@@ -47,17 +49,7 @@ const HeaderTab = ({
       <div className="section-header">
         <h3>Request Headers</h3>
         <button className="add-btn" onClick={handleAddHeader}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <PlusIcon />
           Add
         </button>
       </div>
@@ -86,18 +78,9 @@ const HeaderTab = ({
             <button
               className="remove-btn"
               onClick={() => handleRemoveHeader(index)}
+              title="Remove Header"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <TrashIcon />
             </button>
           </div>
         ))
@@ -106,3 +89,5 @@ const HeaderTab = ({
   </div>
 );
 export default HeaderTab;
+
+9845044066;
