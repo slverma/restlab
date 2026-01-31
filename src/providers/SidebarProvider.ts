@@ -34,19 +34,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
-    private readonly _context: vscode.ExtensionContext
+    private readonly _context: vscode.ExtensionContext,
   ) {
     // Load saved folders from global state
     this._folders = this._context.globalState.get<Folder[]>(
       "restlab.folders",
-      []
+      [],
     );
   }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ) {
     this._view = webviewView;
 
@@ -73,7 +73,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           vscode.commands.executeCommand(
             "restlab.openFolderConfig",
             message.folderId,
-            message.folderName
+            message.folderName,
           );
           break;
         case "deleteFolder":
@@ -96,7 +96,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             "restlab.openRequest",
             message.requestId,
             message.requestName,
-            message.folderId
+            message.folderId,
           );
           break;
         case "deleteRequest":
@@ -116,6 +116,28 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           break;
         case "exportCollection":
           await this._handleExportCollection(message.folderId, message.format);
+          break;
+        case "moveRequest":
+          this.moveRequest(
+            message.requestId,
+            message.sourceFolderId,
+            message.targetFolderId,
+          );
+          break;
+        case "moveFolder":
+          this.moveFolder(message.folderId, message.targetFolderId);
+          break;
+        case "duplicateRequest":
+          await this.duplicateRequest(message.requestId, message.folderId);
+          break;
+        case "duplicateFolder":
+          await this.duplicateFolder(message.folderId);
+          break;
+        case "renameFolder":
+          await this.renameFolder(message.folderId);
+          break;
+        case "renameRequest":
+          await this.renameRequest(message.requestId, message.folderId);
           break;
       }
     });
@@ -200,7 +222,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   // Helper to find a folder by ID recursively
   private _findFolder(
     folderId: string,
-    folders: Folder[] = this._folders
+    folders: Folder[] = this._folders,
   ): Folder | undefined {
     for (const folder of folders) {
       if (folder.id === folderId) {
@@ -225,7 +247,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     // Get current folder's config
     const currentConfig =
       this._context.globalState.get<FolderConfig>(
-        `restlab.folder.${folderId}`
+        `restlab.folder.${folderId}`,
       ) || {};
 
     // If no parent, return current config
@@ -243,7 +265,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     if (currentConfig.headers) {
       for (const childHeader of currentConfig.headers) {
         const existingIndex = mergedHeaders.findIndex(
-          (h) => h.key.toLowerCase() === childHeader.key.toLowerCase()
+          (h) => h.key.toLowerCase() === childHeader.key.toLowerCase(),
         );
         if (existingIndex >= 0) {
           mergedHeaders[existingIndex] = childHeader;
@@ -297,7 +319,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         "restlab.openRequest",
         newRequest.id,
         newRequest.name,
-        folderId
+        folderId,
       );
     }
   }
@@ -311,10 +333,412 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  public async renameFolder(folderId: string) {
+    const folder = this._findFolder(folderId);
+    if (!folder) {
+      vscode.window.showErrorMessage("Folder not found");
+      return;
+    }
+
+    const newName = await vscode.window.showInputBox({
+      prompt: "Enter new folder name",
+      placeHolder: folder.name,
+      value: folder.name,
+      validateInput: (value) => {
+        if (!value || value.trim().length === 0) {
+          return "Folder name cannot be empty";
+        }
+        return null;
+      },
+    });
+
+    if (newName && newName !== folder.name) {
+      folder.name = newName;
+      this._saveFolders();
+      this._sendFoldersToWebview();
+      vscode.window.showInformationMessage(`Renamed folder to "${newName}"`);
+    }
+  }
+
+  public async renameRequest(requestId: string, folderId: string) {
+    const folder = this._findFolder(folderId);
+    if (!folder || !folder.requests) {
+      vscode.window.showErrorMessage("Request not found");
+      return;
+    }
+
+    const request = folder.requests.find((r) => r.id === requestId);
+    if (!request) {
+      vscode.window.showErrorMessage("Request not found");
+      return;
+    }
+
+    const newName = await vscode.window.showInputBox({
+      prompt: "Enter new request name",
+      placeHolder: request.name,
+      value: request.name,
+      validateInput: (value) => {
+        if (!value || value.trim().length === 0) {
+          return "Request name cannot be empty";
+        }
+        return null;
+      },
+    });
+
+    if (newName && newName !== request.name) {
+      request.name = newName;
+
+      // Also update the stored request config
+      const requestConfig = this._context.globalState.get<any>(
+        `restlab.request.${requestId}`,
+      );
+      if (requestConfig) {
+        requestConfig.name = newName;
+        await this._context.globalState.update(
+          `restlab.request.${requestId}`,
+          requestConfig,
+        );
+      }
+
+      this._saveFolders();
+      this._sendFoldersToWebview();
+      vscode.window.showInformationMessage(`Renamed request to "${newName}"`);
+    }
+  }
+
+  public async duplicateRequest(requestId: string, folderId: string) {
+    const folder = this._findFolder(folderId);
+    if (!folder || !folder.requests) {
+      vscode.window.showErrorMessage("Request not found");
+      return;
+    }
+
+    const originalRequest = folder.requests.find((r) => r.id === requestId);
+    if (!originalRequest) {
+      vscode.window.showErrorMessage("Request not found");
+      return;
+    }
+
+    // Create new request with copied data
+    const newRequestId = `request-${Date.now()}`;
+    const newRequest: Request = {
+      id: newRequestId,
+      name: `${originalRequest.name} (Copy)`,
+      folderId: folderId,
+      method: originalRequest.method,
+    };
+
+    // Copy the request config (URL, headers, body, etc.)
+    const originalConfig = this._context.globalState.get<any>(
+      `restlab.request.${requestId}`,
+    );
+    if (originalConfig) {
+      await this._context.globalState.update(
+        `restlab.request.${newRequestId}`,
+        {
+          ...originalConfig,
+          id: newRequestId,
+          name: newRequest.name,
+          folderId: folderId,
+        },
+      );
+    }
+
+    folder.requests.push(newRequest);
+    this._saveFolders();
+    this._sendFoldersToWebview();
+
+    vscode.window.showInformationMessage(
+      `Duplicated "${originalRequest.name}"`,
+    );
+
+    // Optionally open the duplicated request
+    vscode.commands.executeCommand(
+      "restlab.openRequest",
+      newRequestId,
+      newRequest.name,
+      folderId,
+    );
+  }
+
+  public async duplicateFolder(folderId: string) {
+    const originalFolder = this._findFolder(folderId);
+    if (!originalFolder) {
+      vscode.window.showErrorMessage("Folder not found");
+      return;
+    }
+
+    // Deep clone the folder with new IDs
+    const duplicatedFolder = await this._deepCloneFolder(
+      originalFolder,
+      originalFolder.parentId,
+    );
+    duplicatedFolder.name = `${originalFolder.name} (Copy)`;
+
+    // Add to appropriate location
+    if (originalFolder.parentId) {
+      const parentFolder = this._findFolder(originalFolder.parentId);
+      if (parentFolder) {
+        if (!parentFolder.subfolders) {
+          parentFolder.subfolders = [];
+        }
+        parentFolder.subfolders.push(duplicatedFolder);
+      }
+    } else {
+      this._folders.push(duplicatedFolder);
+    }
+
+    this._saveFolders();
+    this._sendFoldersToWebview();
+
+    vscode.window.showInformationMessage(`Duplicated "${originalFolder.name}"`);
+  }
+
+  private async _deepCloneFolder(
+    folder: Folder,
+    parentId?: string,
+  ): Promise<Folder> {
+    const newFolderId = `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Clone folder config
+    const originalFolderConfig = this._context.globalState.get<FolderConfig>(
+      `restlab.folder.${folder.id}`,
+    );
+    if (originalFolderConfig) {
+      await this._context.globalState.update(`restlab.folder.${newFolderId}`, {
+        ...originalFolderConfig,
+      });
+    }
+
+    // Clone requests
+    const clonedRequests: Request[] = [];
+    if (folder.requests) {
+      for (const request of folder.requests) {
+        const newRequestId = `request-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Clone request config
+        const originalRequestConfig = this._context.globalState.get<any>(
+          `restlab.request.${request.id}`,
+        );
+        if (originalRequestConfig) {
+          await this._context.globalState.update(
+            `restlab.request.${newRequestId}`,
+            {
+              ...originalRequestConfig,
+              id: newRequestId,
+              folderId: newFolderId,
+            },
+          );
+        }
+
+        clonedRequests.push({
+          id: newRequestId,
+          name: request.name,
+          folderId: newFolderId,
+          method: request.method,
+        });
+      }
+    }
+
+    // Clone subfolders recursively
+    const clonedSubfolders: Folder[] = [];
+    if (folder.subfolders) {
+      for (const subfolder of folder.subfolders) {
+        const clonedSubfolder = await this._deepCloneFolder(
+          subfolder,
+          newFolderId,
+        );
+        clonedSubfolders.push(clonedSubfolder);
+      }
+    }
+
+    return {
+      id: newFolderId,
+      name: folder.name,
+      createdAt: Date.now(),
+      parentId: parentId,
+      requests: clonedRequests,
+      subfolders: clonedSubfolders,
+    };
+  }
+
+  public moveRequest(
+    requestId: string,
+    sourceFolderId: string,
+    targetFolderId: string,
+  ) {
+    const sourceFolder = this._findFolder(sourceFolderId);
+    const targetFolder = this._findFolder(targetFolderId);
+
+    if (!sourceFolder || !targetFolder) {
+      vscode.window.showErrorMessage("Could not find source or target folder");
+      return;
+    }
+
+    // Find the request in the source folder
+    const requestIndex = sourceFolder.requests?.findIndex(
+      (r) => r.id === requestId,
+    );
+    if (requestIndex === undefined || requestIndex < 0) {
+      vscode.window.showErrorMessage("Request not found");
+      return;
+    }
+
+    // Remove request from source folder
+    const [request] = sourceFolder.requests!.splice(requestIndex, 1);
+
+    // Update request's folderId
+    request.folderId = targetFolderId;
+
+    // Add request to target folder
+    if (!targetFolder.requests) {
+      targetFolder.requests = [];
+    }
+    targetFolder.requests.push(request);
+
+    // Also update the stored request config with new folderId
+    const requestConfig = this._context.globalState.get<any>(
+      `restlab.request.${requestId}`,
+    );
+    if (requestConfig) {
+      requestConfig.folderId = targetFolderId;
+      this._context.globalState.update(
+        `restlab.request.${requestId}`,
+        requestConfig,
+      );
+    }
+
+    this._saveFolders();
+    this._sendFoldersToWebview();
+    vscode.window.showInformationMessage(
+      `Moved "${request.name}" to "${targetFolder.name}"`,
+    );
+  }
+
+  public moveFolder(folderId: string, targetFolderId: string | null) {
+    const folderToMove = this._findFolder(folderId);
+    if (!folderToMove) {
+      vscode.window.showErrorMessage("Folder not found");
+      return;
+    }
+
+    // Prevent moving a folder into itself or its descendants
+    if (targetFolderId && this._isDescendant(folderId, targetFolderId)) {
+      vscode.window.showErrorMessage(
+        "Cannot move a folder into itself or its subfolder",
+      );
+      return;
+    }
+
+    // Remove folder from its current location
+    this._removeFolder(folderId);
+
+    if (targetFolderId === null) {
+      // Move to root level
+      folderToMove.parentId = undefined;
+      this._folders.push(folderToMove);
+    } else {
+      // Move into target folder
+      const targetFolder = this._findFolder(targetFolderId);
+      if (!targetFolder) {
+        vscode.window.showErrorMessage("Target folder not found");
+        return;
+      }
+
+      folderToMove.parentId = targetFolderId;
+      if (!targetFolder.subfolders) {
+        targetFolder.subfolders = [];
+      }
+      targetFolder.subfolders.push(folderToMove);
+    }
+
+    // Update parentId for all requests in the moved folder (recursive)
+    this._updateRequestFolderIds(folderToMove);
+
+    this._saveFolders();
+    this._sendFoldersToWebview();
+    vscode.window.showInformationMessage(
+      `Moved "${folderToMove.name}" ${targetFolderId === null ? "to root level" : "successfully"}`,
+    );
+  }
+
+  // Check if targetId is a descendant of parentId
+  private _isDescendant(parentId: string, targetId: string): boolean {
+    const parent = this._findFolder(parentId);
+    if (!parent) return false;
+
+    if (parent.id === targetId) return true;
+
+    if (parent.subfolders) {
+      for (const subfolder of parent.subfolders) {
+        if (
+          subfolder.id === targetId ||
+          this._isDescendant(subfolder.id, targetId)
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // Remove folder from its current location (doesn't delete, just removes from tree)
+  private _removeFolder(folderId: string): Folder | undefined {
+    // Check top-level folders
+    const topIndex = this._folders.findIndex((f) => f.id === folderId);
+    if (topIndex >= 0) {
+      return this._folders.splice(topIndex, 1)[0];
+    }
+
+    // Check subfolders recursively
+    const removeFromSubfolders = (folders: Folder[]): Folder | undefined => {
+      for (const folder of folders) {
+        if (folder.subfolders) {
+          const index = folder.subfolders.findIndex((f) => f.id === folderId);
+          if (index >= 0) {
+            return folder.subfolders.splice(index, 1)[0];
+          }
+          const found = removeFromSubfolders(folder.subfolders);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
+    return removeFromSubfolders(this._folders);
+  }
+
+  // Update folderId for all requests in a folder tree
+  private _updateRequestFolderIds(folder: Folder) {
+    if (folder.requests) {
+      for (const request of folder.requests) {
+        request.folderId = folder.id;
+        // Also update stored request config
+        const requestConfig = this._context.globalState.get<any>(
+          `restlab.request.${request.id}`,
+        );
+        if (requestConfig) {
+          requestConfig.folderId = folder.id;
+          this._context.globalState.update(
+            `restlab.request.${request.id}`,
+            requestConfig,
+          );
+        }
+      }
+    }
+
+    if (folder.subfolders) {
+      for (const subfolder of folder.subfolders) {
+        this._updateRequestFolderIds(subfolder);
+      }
+    }
+  }
+
   public updateRequestMethod(
     folderId: string,
     requestId: string,
-    method: string
+    method: string,
   ) {
     const folder = this._findFolder(folderId);
     if (folder && folder.requests) {
@@ -344,10 +768,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       provider === "restlab"
         ? "RESTLab"
         : provider === "postman"
-        ? "Postman"
-        : provider === "thunder-client"
-        ? "Thunder Client"
-        : "Collection";
+          ? "Postman"
+          : provider === "thunder-client"
+            ? "Thunder Client"
+            : "Collection";
 
     const fileUri = await vscode.window.showOpenDialog({
       canSelectFiles: true,
@@ -372,13 +796,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       await this._applyImportResult(importResult);
 
       vscode.window.showInformationMessage(
-        `Successfully imported ${importResult.folders.length} collection(s) from ${providerName}`
+        `Successfully imported ${importResult.folders.length} collection(s) from ${providerName}`,
       );
     } catch (error) {
       vscode.window.showErrorMessage(
         `Failed to import collection: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }
@@ -393,7 +817,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     for (const [folderId, config] of importResult.folderConfigs) {
       await this._context.globalState.update(
         `restlab.folder.${folderId}`,
-        config
+        config,
       );
     }
 
@@ -456,17 +880,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       if (saveUri) {
         await vscode.workspace.fs.writeFile(
           saveUri,
-          Buffer.from(jsonContent, "utf-8")
+          Buffer.from(jsonContent, "utf-8"),
         );
         vscode.window.showInformationMessage(
-          `Collection exported successfully to ${saveUri.fsPath}`
+          `Collection exported successfully to ${saveUri.fsPath}`,
         );
       }
     } catch (error) {
       vscode.window.showErrorMessage(
         `Failed to export collection: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }
@@ -486,10 +910,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "dist", "sidebar", "index.js")
+      vscode.Uri.joinPath(this._extensionUri, "dist", "sidebar", "index.js"),
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "dist", "sidebar", "index.css")
+      vscode.Uri.joinPath(this._extensionUri, "dist", "sidebar", "index.css"),
     );
 
     const nonce = getNonce();
