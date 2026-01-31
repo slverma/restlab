@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.8] - 2026-01-31
+
+### Added
+
+#### Drag & Drop Support
+
+- **Move Requests** - Drag and drop requests between folders
+  - Visual feedback with highlighted drop targets
+  - Automatic folder expansion on drop
+- **Move Folders** - Drag folders into other folders or to root level
+  - Prevents circular references (can't drop into self or children)
+  - Root level drop zone indicator when dragging folders
+
+#### Duplicate Feature
+
+- **Duplicate Request** - Create a copy of any request with all settings (URL, headers, body)
+  - Duplicated request named with "(Copy)" suffix
+  - Automatically opens the duplicated request
+- **Duplicate Collection** - Deep clone entire folder hierarchies
+  - Copies all requests, subfolders, and configurations recursively
+  - Available in folder dropdown menu
+
+#### Rename Feature
+
+- **Rename Request** - Rename requests via dropdown menu
+  - Input validation (non-empty names)
+  - Updates stored configuration
+- **Rename Collection** - Rename folders via dropdown menu
+  - Pre-fills current name in input box
+
+### Changed
+
+- **Request Actions UI** - Consolidated all request actions (Rename, Duplicate, Delete) into a single dropdown menu
+  - Cleaner interface matching folder actions pattern
+  - Three-dot menu button on hover
+
+### UI Improvements
+
+- Added drag preview showing item name during drag operations
+- Drop target highlighting with blue accent glow
+- Empty folder hint changes to "Drop here to add" when dragging over
+
+---
+
 ## [0.0.7] - 2026-01-31
 
 ### Changed

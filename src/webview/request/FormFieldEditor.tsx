@@ -1,6 +1,11 @@
 import React from "react";
 import { hasFileFields } from "../helpers/helper";
 import { useRequestContext } from "./RequestContext";
+import PlusIcon from "../components/icons/PlusIcon";
+import FileIcon from "../components/icons/FileIcon";
+import TextIcon from "../components/icons/TextIcon";
+import UploadIcon from "../components/icons/UploadIcon";
+import TrashIcon from "../components/icons/TrashIcon";
 
 const FormFieldEditor = () => {
   const {
@@ -17,17 +22,7 @@ const FormFieldEditor = () => {
       <div className="section-header">
         <h3>Form Fields</h3>
         <button className="add-btn" onClick={handleAddFormData}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <PlusIcon />
           Add Field
         </button>
       </div>
@@ -59,33 +54,7 @@ const FormFieldEditor = () => {
                   item.type === "file" ? "Switch to text" : "Switch to file"
                 }
               >
-                {item.type === "file" ? (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="17" y1="10" x2="3" y2="10" />
-                    <line x1="21" y1="6" x2="3" y2="6" />
-                    <line x1="21" y1="14" x2="3" y2="14" />
-                    <line x1="17" y1="18" x2="3" y2="18" />
-                  </svg>
-                )}
+                {item.type === "file" ? <FileIcon /> : <TextIcon />}
               </button>
             )}
 
@@ -103,18 +72,7 @@ const FormFieldEditor = () => {
                   htmlFor={`file-input-${index}`}
                   className="file-input-label"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
+                  <UploadIcon />
                   {item.fileName || "Choose file"}
                 </label>
               </div>
@@ -134,17 +92,7 @@ const FormFieldEditor = () => {
               className="remove-btn"
               onClick={() => handleRemoveFormData(index)}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <TrashIcon />
             </button>
           </div>
         ))
