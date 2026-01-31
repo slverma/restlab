@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import FolderIcon from "../components/icons/FolderIcon";
+import SaveIcon from "../components/icons/SaveIcon";
+import ArrowUpIcon from "../components/icons/ArrowIcon";
+import PlusIcon from "../components/icons/PlusIcon";
+import DocumentIcon from "../components/icons/DocumentIcon";
+import TrashIcon from "../components/icons/TrashIcon";
 
 interface Header {
   key: string;
@@ -79,7 +85,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   useEffect(() => {
     if (value) {
       const filtered = suggestions.filter((s) =>
-        s.toLowerCase().includes(value.toLowerCase())
+        s.toLowerCase().includes(value.toLowerCase()),
       );
       setFilteredSuggestions(filtered);
     } else {
@@ -110,7 +116,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveSuggestionIndex((prev) =>
-        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+        prev < filteredSuggestions.length - 1 ? prev + 1 : prev,
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -218,7 +224,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
   const handleUpdateHeader = (
     index: number,
     field: "key" | "value",
-    value: string
+    value: string,
   ) => {
     setConfig((prev) => {
       const newHeaders = [...(prev.headers || [])];
@@ -246,18 +252,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
       <div className="editor-header">
         <div className="header-content">
           <div className="header-icon">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
+            <FolderIcon />
           </div>
           <div className="header-info">
             <h1>{config.name}</h1>
@@ -269,20 +264,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
           onClick={handleSave}
           disabled={!isDirty}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
+          <SaveIcon />
           Save Changes
         </button>
       </div>
@@ -315,16 +297,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
             />
             {inheritedConfig.baseUrl && !config.baseUrl && (
               <p className="field-hint inherited-hint">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
+                <ArrowUpIcon />
                 Inherited from parent: <code>{inheritedConfig.baseUrl}</code>
               </p>
             )}
@@ -338,19 +311,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
           <div className="section-header">
             <h2>Headers</h2>
             <button className="add-btn" onClick={handleAddHeader}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
+              <PlusIcon />
               Add Header
             </button>
           </div>
@@ -359,16 +320,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
           {inheritedConfig.headers && inheritedConfig.headers.length > 0 && (
             <div className="inherited-headers">
               <p className="inherited-label">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
+                <ArrowUpIcon />
                 Inherited from parent folder:
               </p>
               <div className="inherited-headers-list">
@@ -388,22 +340,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
           <div className="headers-list">
             {(config.headers || []).length === 0 ? (
               <div className="empty-message">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="empty-icon"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
+                <DocumentIcon />
                 <p>No headers configured</p>
                 <span>Headers added here will be included in all requests</span>
               </div>
@@ -434,19 +371,7 @@ export const FolderEditor: React.FC<FolderEditorProps> = ({
                     title="Remove header"
                     aria-label="Remove header"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
+                    <TrashIcon />
                   </button>
                 </div>
               ))
