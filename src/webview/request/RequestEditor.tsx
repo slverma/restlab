@@ -1,488 +1,57 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import React from "react";
+import { useRequestContext, RequestContextProvider } from "./RequestContext";
+import { RequestEditorProps } from "../types/internal.types";
 import {
-  FolderConfig,
-  FormDataItem,
-  RequestConfig,
-  RequestEditorProps,
-  ResponseData,
-} from "../types/internal.types";
-import { generateCurlCommand } from "../helpers/curl";
-import {
-  formDataToBody,
-  hasFileFields,
   isFormContentType,
-  stripJsonComments,
+  formatJson,
+  getStatusColor,
+  getFileExtension,
+  formatSize,
+  getBodyPlaceholder,
 } from "../helpers/helper";
 import FormFieldEditor from "./FormFieldEditor";
 import SendIcon from "../components/icons/SendIcon";
 import SaveIcon from "../components/icons/SaveIcon";
 import CodeIcon from "../components/icons/CodeIcon";
 import SplitIcon from "../components/icons/SplitIcon";
-import { COMMON_HEADERS, CONTENT_TYPES, HTTP_METHODS } from "../config";
+import { CONTENT_TYPES, HTTP_METHODS } from "../config";
 import HeaderTab from "./HeaderTab";
 import MonacoEditor from "./BodyEditor";
 import DownloadIcon from "../components/icons/DownloadIcon";
 import WarningIcon from "../components/icons/WarningIcon";
+import BeautifyIcon from "../components/icons/BeautifyIcon";
+import CopyIcon from "../components/icons/CopyIcon";
 
-const getEditorLanguageFromContentType = (contentType?: string) => {
-  if (!contentType) return "plaintext";
-  const ct = contentType.toLowerCase();
-  if (ct.includes("json")) return "json";
-  if (ct.includes("xml")) return "xml";
-  if (ct.includes("html")) return "html";
-  if (ct.includes("css")) return "css";
-  if (ct.includes("javascript") || ct.includes("ecmascript")) {
-    return "javascript";
-  }
-  return "plaintext";
-};
-
-const formatJson = (data: string) => {
-  try {
-    return JSON.stringify(JSON.parse(data), null, 2);
-  } catch {
-    return data;
-  }
-};
-
-declare function acquireVsCodeApi(): {
-  postMessage: (message: unknown) => void;
-  getState: () => unknown;
-  setState: (state: unknown) => void;
-};
-
-const vscode = acquireVsCodeApi();
-
-export const RequestEditor: React.FC<RequestEditorProps> = ({
-  requestId,
-  requestName,
-  folderId,
-}) => {
-  const [config, setConfig] = useState<RequestConfig>({
-    id: requestId,
-    name: requestName,
-    folderId,
-    method: "GET",
-    url: "",
-    headers: [],
-    body: "",
-    contentType: "",
-    formData: [],
-  });
-
-  const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
-  const [response, setResponse] = useState<ResponseData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"headers" | "body">("headers");
-  const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
-  const [isSaved, setIsSaved] = useState(true);
-  const bodyEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(
-    null,
-  );
-
-  const requestEditorLanguage = useMemo(
-    () => getEditorLanguageFromContentType(config.contentType),
-    [config.contentType],
-  );
-
-  const responseContentType = response?.headers["content-type"];
-  const responseEditorLanguage = useMemo(
-    () => getEditorLanguageFromContentType(responseContentType),
-    [responseContentType],
-  );
-
-  const responseBodyValue = useMemo(() => {
-    if (!response) return "";
-    if (response.status === 0) return response.data;
-    if (responseEditorLanguage === "json") {
-      return formatJson(response.data);
-    }
-    return response.data;
-  }, [response, responseEditorLanguage]);
-
-  // Layout and resizable panel state
-  const [splitLayout, setSplitLayout] = useState<"horizontal" | "vertical">(
-    "horizontal",
-  );
-  const [requestSize, setRequestSize] = useState(50); // percentage for split view
-  const [isResizing, setIsResizing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const splitContainerRef = useRef<HTMLDivElement>(null);
-
-  // Handle resizing for both horizontal and vertical layouts
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !splitContainerRef.current) return;
-
-      const containerRect = splitContainerRef.current.getBoundingClientRect();
-
-      if (splitLayout === "horizontal") {
-        // Vertical resize (top/bottom)
-        const newSize =
-          ((e.clientY - containerRect.top) / containerRect.height) * 100;
-        const clampedSize = Math.max(20, Math.min(80, newSize));
-        setRequestSize(clampedSize);
-      } else {
-        // Horizontal resize (left/right)
-        const newSize =
-          ((e.clientX - containerRect.left) / containerRect.width) * 100;
-        const clampedSize = Math.max(25, Math.min(75, newSize));
-        setRequestSize(clampedSize);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    if (isResizing) {
-      document.body.style.cursor =
-        splitLayout === "horizontal" ? "row-resize" : "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isResizing, splitLayout]);
-
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  };
-
-  const toggleLayout = () => {
-    setSplitLayout((prev) =>
-      prev === "horizontal" ? "vertical" : "horizontal",
-    );
-    setRequestSize(50); // Reset to 50% when switching layouts
-  };
-
-  // Methods that support request body
-  const methodsWithBody = ["POST", "PUT", "PATCH"];
-
-  useEffect(() => {
-    vscode.postMessage({ type: "getConfig" });
-
-    const handleMessage = (event: MessageEvent) => {
-      const message = event.data;
-      switch (message.type) {
-        case "configLoaded":
-          setConfig(message.config);
-          setFolderConfig(message.folderConfig || {});
-          setIsSaved(true);
-          break;
-        case "folderConfigUpdated":
-          // Update only the folder config without resetting request config
-          setFolderConfig(message.folderConfig || {});
-          break;
-        case "responseReceived":
-          setResponse(message.response);
-          setIsLoading(false);
-          break;
-      }
-    };
-
-    // Refresh folder config when tab becomes visible again
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        vscode.postMessage({ type: "getConfig" });
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  const handleSendRequest = () => {
-    setIsLoading(true);
-    setResponse(null);
-
-    // Combine folder headers with request headers
-    let allHeaders = [
-      ...(folderConfig.headers || []),
-      ...(config.headers || []),
-    ];
-
-    // Add Content-Type header if set and not already present
-    if (config.contentType) {
-      const hasContentType = allHeaders.some(
-        (h) => h.key.toLowerCase() === "content-type",
-      );
-      if (!hasContentType) {
-        allHeaders = [
-          { key: "Content-Type", value: config.contentType },
-          ...allHeaders,
-        ];
-      }
-    }
-
-    // Build full URL
-    const fullUrl = folderConfig.baseUrl
-      ? `${folderConfig.baseUrl}${config.url}`
-      : config.url;
-
-    // Determine body: use formData if form content type, otherwise use raw body
-    let requestBody = config.body;
-    let formDataWithFiles: FormDataItem[] | undefined;
-
-    if (isFormContentType(config.contentType)) {
-      if (hasFileFields(config.formData)) {
-        // Send form data with files to extension for proper multipart handling
-        formDataWithFiles = config.formData;
-        requestBody = undefined;
-      } else {
-        requestBody = formDataToBody(config.formData || [], config.contentType);
-      }
-    } else {
-      // Strip comments from JSON/text body before sending
-      requestBody = stripJsonComments(config.body || "");
-    }
-
-    vscode.postMessage({
-      type: "sendRequest",
-      method: config.method,
-      url: fullUrl,
-      headers: allHeaders,
-      body: requestBody,
-      formData: formDataWithFiles,
-    });
-
-    // Auto-save config
-    vscode.postMessage({ type: "saveConfig", config });
-    setIsSaved(true);
-  };
-
-  const handleSaveConfig = () => {
-    vscode.postMessage({ type: "saveConfig", config });
-    setIsSaved(true);
-  };
-
-  const handleConfigChange = (updates: Partial<RequestConfig>) => {
-    setConfig((prev) => ({ ...prev, ...updates }));
-    setIsSaved(false);
-  };
-
-  const handleAddHeader = () => {
-    setConfig((prev) => ({
-      ...prev,
-      headers: [...(prev.headers || []), { key: "", value: "" }],
-    }));
-    setIsSaved(false);
-  };
-
-  const handleUpdateHeader = (
-    index: number,
-    field: "key" | "value",
-    value: string,
-  ) => {
-    setConfig((prev) => {
-      const newHeaders = [...(prev.headers || [])];
-      newHeaders[index] = { ...newHeaders[index], [field]: value };
-      return { ...prev, headers: newHeaders };
-    });
-    setIsSaved(false);
-  };
-
-  const handleRemoveHeader = (index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      headers: (prev.headers || []).filter((_, i) => i !== index),
-    }));
-    setIsSaved(false);
-  };
-
-  const handleAddFormData = () => {
-    setConfig((prev) => ({
-      ...prev,
-      formData: [
-        ...(prev.formData || []),
-        { key: "", value: "", type: "text" },
-      ],
-    }));
-    setIsSaved(false);
-  };
-
-  const handleUpdateFormData = (
-    index: number,
-    field: "key" | "value",
-    value: string,
-  ) => {
-    setConfig((prev) => {
-      const newFormData = [...(prev.formData || [])];
-      newFormData[index] = { ...newFormData[index], [field]: value };
-      return { ...prev, formData: newFormData };
-    });
-    setIsSaved(false);
-  };
-
-  const handleRemoveFormData = (index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      formData: (prev.formData || []).filter((_, i) => i !== index),
-    }));
-    setIsSaved(false);
-  };
-
-  const handleToggleFormDataType = (index: number) => {
-    setConfig((prev) => {
-      const newFormData = [...(prev.formData || [])];
-      const currentType = newFormData[index].type || "text";
-      newFormData[index] = {
-        ...newFormData[index],
-        type: currentType === "text" ? "file" : "text",
-        value: "",
-        fileName: undefined,
-        fileData: undefined,
-      };
-      return { ...prev, formData: newFormData };
-    });
-    setIsSaved(false);
-  };
-
-  const handleFileSelect = (index: number, file: File | null) => {
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      setConfig((prev) => {
-        const newFormData = [...(prev.formData || [])];
-        newFormData[index] = {
-          ...newFormData[index],
-          fileName: file.name,
-          fileData: base64,
-          value: file.name,
-        };
-        return { ...prev, formData: newFormData };
-      });
-      setIsSaved(false);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const getStatusColor = (status: number) => {
-    if (status >= 200 && status < 300) return "status-success";
-    if (status >= 300 && status < 400) return "status-redirect";
-    if (status >= 400 && status < 500) return "status-client-error";
-    if (status >= 500) return "status-server-error";
-    return "status-error";
-  };
-
-  const getFileExtension = (headers: Record<string, string>) => {
-    const contentType = headers["content-type"] || "";
-    if (contentType.includes("json")) return "json";
-    if (contentType.includes("xml")) return "xml";
-    if (contentType.includes("html")) return "html";
-    if (contentType.includes("css")) return "css";
-    if (contentType.includes("javascript")) return "js";
-    if (contentType.includes("csv")) return "csv";
-    return "txt";
-  };
-
-  const formatSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const units = ["B", "KB", "MB", "GB"];
-    const k = 1024;
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    const size = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
-    return `${size} ${units[i]}`;
-  };
-
-  const getBodyPlaceholder = (contentType?: string) => {
-    switch (contentType) {
-      case "application/json":
-        return '{\n  "key": "value"\n}';
-      case "application/xml":
-        return '<?xml version="1.0"?>\n<root>\n  <element>value</element>\n</root>';
-      case "application/x-www-form-urlencoded":
-        return "key1=value1&key2=value2";
-      case "text/plain":
-        return "Plain text content...";
-      case "text/html":
-        return "<html>\n  <body>Content</body>\n</html>";
-      default:
-        return "Request body...";
-    }
-  };
-
-  const handleCopyCurl = useCallback(() => {
-    const curl = generateCurlCommand(folderConfig, config);
-    navigator.clipboard.writeText(curl);
-    vscode.postMessage({
-      type: "showInfo",
-      message: "cURL command copied to clipboard!",
-    });
-  }, [folderConfig, config]);
-
-  const handleBeautifyJson = async () => {
-    if (!config.body) return;
-
-    // Try to use Monaco's formatter directly if editor is available
-    const bodyEditor = bodyEditorRef.current;
-    if (bodyEditor && config.contentType === "application/json") {
-      try {
-        // First try Monaco's format action
-        const formatAction = bodyEditor.getAction(
-          "editor.action.formatDocument",
-        );
-        if (formatAction) {
-          await formatAction.run();
-          // Check if content actually changed (formatting happened)
-          const currentValue = bodyEditor.getValue();
-          if (currentValue !== config.body) {
-            vscode.postMessage({
-              type: "showInfo",
-              message: "JSON formatted successfully!",
-            });
-            return;
-          }
-        }
-      } catch (error) {
-        // Fall through to manual formatting
-        console.error("Monaco format failed:", error);
-      }
-    }
-
-    // Fallback to manual formatting
-    try {
-      const formatted = formatJson(config.body);
-      if (formatted !== config.body) {
-        handleConfigChange({ body: formatted });
-        vscode.postMessage({
-          type: "showInfo",
-          message: "JSON formatted successfully!",
-        });
-      } else {
-        vscode.postMessage({
-          type: "showInfo",
-          message: "JSON is already formatted",
-        });
-      }
-    } catch (error) {
-      vscode.postMessage({
-        type: "showError",
-        message: "Failed to format: Invalid JSON",
-      });
-    }
-  };
+const RequestEditorContent: React.FC = () => {
+  const {
+    config,
+    folderConfig,
+    response,
+    isLoading,
+    activeTab,
+    responseTab,
+    isSaved,
+    splitLayout,
+    requestSize,
+    isResizing,
+    bodyEditorRef,
+    containerRef,
+    splitContainerRef,
+    requestEditorLanguage,
+    responseEditorLanguage,
+    responseBodyValue,
+    methodsWithBody,
+    setActiveTab,
+    setResponseTab,
+    handleConfigChange,
+    handleSendRequest,
+    handleSaveConfig,
+    handleCopyCurl,
+    handleBeautifyJson,
+    toggleLayout,
+    handleResizeStart,
+    vscode,
+  } = useRequestContext();
 
   return (
     <div className="request-editor" ref={containerRef}>
@@ -616,15 +185,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
             </div>
 
             <div className="tab-content">
-              {activeTab === "headers" && (
-                <HeaderTab
-                  folderConfig={folderConfig}
-                  config={config}
-                  handleAddHeader={handleAddHeader}
-                  handleUpdateHeader={handleUpdateHeader}
-                  handleRemoveHeader={handleRemoveHeader}
-                />
-              )}
+              {activeTab === "headers" && <HeaderTab />}
 
               {activeTab === "body" &&
                 methodsWithBody.includes(config.method) && (
@@ -654,33 +215,13 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                         }
                         title="Format JSON (Beautify)"
                       >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="4 7 4 4 20 4 20 7" />
-                          <line x1="9" y1="20" x2="15" y2="20" />
-                          <line x1="12" y1="4" x2="12" y2="20" />
-                        </svg>
+                        <BeautifyIcon />
                         <span className="btn-text">Beautify</span>
                       </button>
                     </div>
 
                     {isFormContentType(config.contentType) ? (
-                      <FormFieldEditor
-                        handleAddFormData={handleAddFormData}
-                        config={config}
-                        handleUpdateFormData={handleUpdateFormData}
-                        handleToggleFormDataType={handleToggleFormDataType}
-                        handleFileSelect={handleFileSelect}
-                        handleRemoveFormData={handleRemoveFormData}
-                      />
+                      <FormFieldEditor />
                     ) : (
                       <MonacoEditor
                         value={config.body || ""}
@@ -797,24 +338,7 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
                             });
                           }}
                         >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <rect
-                              x="9"
-                              y="9"
-                              width="13"
-                              height="13"
-                              rx="2"
-                              ry="2"
-                            ></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
+                          <CopyIcon />
                           Copy
                         </button>
                         <button
@@ -894,5 +418,13 @@ export const RequestEditor: React.FC<RequestEditorProps> = ({
         )}
       </div>
     </div>
+  );
+};
+
+export const RequestEditor: React.FC<RequestEditorProps> = (props) => {
+  return (
+    <RequestContextProvider {...props}>
+      <RequestEditorContent />
+    </RequestContextProvider>
   );
 };
