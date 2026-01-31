@@ -1,13 +1,20 @@
 import { loader } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 
-// For VS Code webviews, we need to completely disable web workers
-// since they cannot load external scripts due to CSP restrictions.
-// This is set BEFORE Monaco loads to prevent worker creation attempts.
+// Import worker source code as raw strings to create blob workers
+// This avoids cross-origin issues in VS Code webviews
+import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker&inline";
+import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker&inline";
+
+// Configure Monaco to use inline blob workers
+// This is required for VS Code webviews due to CSP/CORS restrictions
 (self as any).MonacoEnvironment = {
-  // Return undefined to disable workers entirely
-  // Monaco will run language services synchronously on main thread
-  getWorker: () => undefined,
+  getWorker(_workerId: string, label: string) {
+    if (label === "json") {
+      return new jsonWorker();
+    }
+    return new editorWorker();
+  },
 };
 
 // Configure Monaco to use local bundle instead of CDN

@@ -60,6 +60,7 @@ const extensionConfig: InlineConfig = {
 const createWebviewConfig = (
   name: string,
   format: "iife" | "es" = "iife",
+  includeMonaco: boolean = false,
 ): InlineConfig => ({
   configFile: false,
   plugins: [
@@ -106,10 +107,11 @@ const createWebviewConfig = (
   },
   worker: {
     format: "iife",
+    plugins: () => [],
   },
   // Optimize Monaco deps
   optimizeDeps: {
-    include: ["monaco-editor"],
+    include: includeMonaco ? ["monaco-editor"] : [],
   },
 });
 
@@ -129,7 +131,7 @@ async function buildAll() {
   await build(createWebviewConfig("editor"));
 
   console.log("Building request webview...");
-  await build(createWebviewConfig("request"));
+  await build(createWebviewConfig("request", "iife", true));
 
   console.log("Build complete!");
 
