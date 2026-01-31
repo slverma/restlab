@@ -31,31 +31,35 @@ const BodyEditor: React.FC<MonacoEditorProps> = ({
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Add custom paste handler for VS Code webview clipboard support
-    editor.onDidPaste(() => {
-      // Paste event handled by Monaco
-    });
-
-    // Register custom keyboard shortcut for paste as fallback
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text && !readOnly) {
-          const selection = editor.getSelection();
-          if (selection) {
-            editor.executeEdits("paste", [
-              {
-                range: selection,
-                text: text,
-                forceMoveMarkers: true,
-              },
-            ]);
+    // Add custom paste action for VS Code webview clipboard support
+    // Using addAction instead of addCommand to avoid conflicts between multiple editors
+    editor.addAction({
+      id: "custom-paste",
+      label: "Paste",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
+      contextMenuGroupId: "9_cutcopypaste",
+      contextMenuOrder: 3,
+      run: async (ed) => {
+        if (readOnly) return;
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            const selection = ed.getSelection();
+            if (selection) {
+              ed.executeEdits("paste", [
+                {
+                  range: selection,
+                  text: text,
+                  forceMoveMarkers: true,
+                },
+              ]);
+            }
           }
+        } catch (err) {
+          // Fallback: try using document.execCommand for older API
+          console.debug("Clipboard API not available:", err);
         }
-      } catch (err) {
-        // Fallback: let Monaco handle it normally
-        console.debug("Clipboard API not available, using default paste");
-      }
+      },
     });
 
     // Store ref if provided

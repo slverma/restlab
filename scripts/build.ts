@@ -1,20 +1,20 @@
 import { build, type InlineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = resolve(__dirname, "..");
 const isWatch = process.argv.includes("--watch");
+const isProd = process.env.NODE_ENV === "production";
 
 // Extension build config (Node.js/CommonJS for VS Code)
 const extensionConfig: InlineConfig = {
   configFile: false,
+  root: rootDir,
   build: {
     lib: {
-      entry: resolve(__dirname, "src/extension.ts"),
+      entry: resolve(rootDir, "src/extension.ts"),
       formats: ["cjs"],
       fileName: () => "extension.js",
     },
@@ -42,27 +42,30 @@ const extensionConfig: InlineConfig = {
         "assert",
       ],
     },
-    minify: false,
+    minify: isProd ? "esbuild" : false,
     emptyOutDir: true,
     watch: isWatch ? {} : null,
   },
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
+      "@": resolve(rootDir, "src"),
     },
   },
   define: {
-    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env.NODE_ENV": JSON.stringify(
+      isProd ? "production" : "development",
+    ),
   },
+  logLevel: "warn",
 };
 
 // Webview build config (browser/IIFE for webviews)
 const createWebviewConfig = (
   name: string,
   format: "iife" | "es" = "iife",
-  includeMonaco: boolean = false,
 ): InlineConfig => ({
   configFile: false,
+  root: rootDir,
   plugins: [
     react({
       jsxRuntime: "classic",
@@ -70,14 +73,14 @@ const createWebviewConfig = (
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, `src/webview/${name}/index.tsx`),
+      entry: resolve(rootDir, `src/webview/${name}/index.tsx`),
       formats: [format],
       fileName: () => "index.js",
       name: name.charAt(0).toUpperCase() + name.slice(1),
     },
     outDir: `dist/${name}`,
     sourcemap: true,
-    minify: false,
+    minify: isProd ? "esbuild" : false,
     emptyOutDir: true,
     cssCodeSplit: false,
     rollupOptions: {
@@ -86,62 +89,63 @@ const createWebviewConfig = (
           if (assetInfo.name?.endsWith(".css")) {
             return "index.css";
           }
-          return "[name][extname]";
+          return "assets/[name]-[hash][extname]";
         },
-        // Inline dynamic imports for Monaco workers
         inlineDynamicImports: format === "iife",
       },
     },
     watch: isWatch ? {} : null,
   },
   css: {
-    postcss: "./postcss.config.js",
+    postcss: resolve(rootDir, "postcss.config.js"),
   },
   define: {
-    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env.NODE_ENV": JSON.stringify(
+      isProd ? "production" : "development",
+    ),
   },
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
+      "@": resolve(rootDir, "src"),
     },
   },
   worker: {
     format: "iife",
     plugins: () => [],
   },
-  // Optimize Monaco deps
-  optimizeDeps: {
-    include: includeMonaco ? ["monaco-editor"] : [],
-  },
+  logLevel: "warn",
 });
 
 // Build all targets
 async function buildAll() {
+  const startTime = Date.now();
+
   if (isWatch) {
-    console.log("Building in watch mode...");
+    console.log("🔄 Building in watch mode...\n");
   }
 
-  console.log("Building extension...");
+  // Build extension first (it clears outDir)
+  console.log("📦 Building extension...");
   await build(extensionConfig);
 
-  console.log("Building sidebar webview...");
-  await build(createWebviewConfig("sidebar"));
+  // Build all webviews in parallel
+  console.log("📦 Building webviews in parallel...");
+  await Promise.all([
+    build(createWebviewConfig("sidebar")),
+    build(createWebviewConfig("editor")),
+    build(createWebviewConfig("request")),
+  ]);
 
-  console.log("Building editor webview...");
-  await build(createWebviewConfig("editor"));
-
-  console.log("Building request webview...");
-  await build(createWebviewConfig("request", "iife", true));
-
-  console.log("Build complete!");
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`\n✅ Build complete in ${elapsed}s`);
 
   if (isWatch) {
-    console.log("Watching for changes...");
+    console.log("👀 Watching for changes...");
   }
 }
 
 // Run build
 buildAll().catch((err) => {
-  console.error(err);
+  console.error("❌ Build failed:", err);
   process.exit(1);
 });
