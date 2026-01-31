@@ -3,16 +3,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import FormData from "form-data";
 import { getNonce } from "../utils/getNonce";
 import { SidebarProvider } from "./SidebarProvider";
-
-interface RequestConfig {
-  id: string;
-  name: string;
-  folderId: string;
-  method: string;
-  url: string;
-  headers?: { key: string; value: string }[];
-  body?: string;
-}
+import { RequestConfig } from "../webview/types/internal.types";
 
 export class RequestEditorProvider {
   // Track open panels by request ID

@@ -3,17 +3,19 @@ import * as monaco from "monaco-editor";
 
 // Import worker source code as raw strings to create blob workers
 // This avoids cross-origin issues in VS Code webviews
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker&inline";
-import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker&inline";
+// @ts-ignore
+import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker.js?worker";
+// @ts-ignore
+import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker.js?worker";
 
 // Configure Monaco to use inline blob workers
 // This is required for VS Code webviews due to CSP/CORS restrictions
 (self as any).MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
     if (label === "json") {
-      return new jsonWorker();
+      return new JsonWorker();
     }
-    return new editorWorker();
+    return new EditorWorker();
   },
 };
 
