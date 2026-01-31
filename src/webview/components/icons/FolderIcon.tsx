@@ -1,3 +1,4 @@
+import React from "react";
 const FolderIcon = () => (
   <svg
     width="18"

@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.7] - 2026-01-31
+
+### Changed
+
+#### Build System Migration: esbuild → Vite
+
+- **Vite Build System** - Migrated from esbuild to Vite for improved build tooling
+  - Separate build configurations for extension (SSR/CJS) and webviews (IIFE)
+  - Parallel webview builds for faster build times (~2x faster)
+  - Proper sourcemap generation for debugging
+  - Production builds with esbuild minification
+
+- **Optimized Build Scripts**
+  - `npm run build` - Development build (no minification)
+  - `npm run build:prod` - Production build with minification
+  - `npm run watch` - Watch mode for development
+  - Replaced `vite-node` with `tsx` for faster script execution
+
+- **Monaco Editor Improvements**
+  - Configured Monaco to use inline blob workers (bypasses VS Code CSP restrictions)
+  - Custom dark theme ("restlab-dark") matching VS Code aesthetics
+  - Fixed clipboard paste functionality in VS Code webviews
+  - Paste now works correctly with multiple Monaco editor instances
+
+### Fixed
+
+- **Clipboard Support** - Fixed paste (Cmd+V / Ctrl+V) not working in Monaco editors within VS Code webviews
+  - Uses `navigator.clipboard.readText()` API
+  - Editor-instance specific action to prevent conflicts between multiple editors
+
+- **CSP Compatibility** - Updated Content Security Policy for webviews
+  - Added `font-src data:` for Monaco fonts
+  - Added `worker-src blob:` for inline workers
+  - Added `'unsafe-eval'` for Monaco's dynamic code evaluation
+
+- **JSX Runtime** - Fixed "jsxDEV is not a function" errors by using classic JSX runtime
+
+- **React Imports** - Added explicit React imports to all components for classic JSX compatibility
+
+### Removed
+
+- Removed `esbuild.js` build script
+- Removed `vite-node` dependency (replaced with `tsx`)
+
+---
+
 ## [0.0.5] 15-01-2026
 
 ### Added

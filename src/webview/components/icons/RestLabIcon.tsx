@@ -1,3 +1,4 @@
+import React from "react";
 // RESTLab icon component
 const RESTLabIcon: React.FC = () => (
   <svg
