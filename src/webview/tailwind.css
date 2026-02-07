@@ -193,6 +193,7 @@
   /* Tooltip styles */
   .custom-tooltip {
     padding: 4px 8px;
+    margin: 2px;
     border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
@@ -206,7 +207,8 @@
     animation: tooltipFadeIn 0.15s ease-out;
   }
 
-  .custom-tooltip::after {
+  /* Tooltip arrow - top position */
+  .custom-tooltip.tooltip-top::after {
     content: "";
     position: absolute;
     top: 100%;
@@ -214,6 +216,39 @@
     transform: translateX(-50%);
     border: 4px solid transparent;
     border-top-color: var(--vscode-editorWidget-background, #252526);
+  }
+
+  /* Tooltip arrow - bottom position */
+  .custom-tooltip.tooltip-bottom::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-bottom-color: var(--vscode-editorWidget-background, #252526);
+  }
+
+  /* Tooltip arrow - left position */
+  .custom-tooltip.tooltip-left::after {
+    content: "";
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left-color: var(--vscode-editorWidget-background, #252526);
+  }
+
+  /* Tooltip arrow - right position */
+  .custom-tooltip.tooltip-right::after {
+    content: "";
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-right-color: var(--vscode-editorWidget-background, #252526);
   }
 
   /* Primary button with gradient */
@@ -365,11 +400,9 @@
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(-100% + 4px));
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -100%);
   }
 }
 

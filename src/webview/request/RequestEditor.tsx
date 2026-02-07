@@ -21,7 +21,8 @@ import DownloadIcon from "../components/icons/DownloadIcon";
 import WarningIcon from "../components/icons/WarningIcon";
 import BeautifyIcon from "../components/icons/BeautifyIcon";
 import CopyIcon from "../components/icons/CopyIcon";
-import DocumentIcon from "../components/icons/DocumentIcon";
+import Tooltip from "../components/Tooltip";
+import PencilIcon from "../components/icons/PencilIcon";
 
 const RequestEditorContent: React.FC = () => {
   const {
@@ -320,85 +321,86 @@ const RequestEditorContent: React.FC = () => {
                         </button>
                       </div>
                       <div className="response-actions">
-                        <button
-                          className="action-btn"
-                          title="Copy to clipboard"
-                          onClick={() => {
-                            const content =
-                              responseTab === "body"
-                                ? formatJson(response.data)
-                                : Object.entries(response.headers)
-                                    .map(([k, v]) => `${k}: ${v}`)
-                                    .join("\n");
-                            navigator.clipboard.writeText(content);
-                            vscode.postMessage({
-                              type: "showInfo",
-                              message: "Copied to clipboard!",
-                            });
-                          }}
-                        >
-                          <CopyIcon />
-                          Copy
-                        </button>
-                        <button
-                          className="action-btn"
-                          title="Download response"
-                          onClick={() => {
-                            const content =
-                              responseTab === "body"
-                                ? formatJson(response.data)
-                                : Object.entries(response.headers)
-                                    .map(([k, v]) => `${k}: ${v}`)
-                                    .join("\n");
-                            const extension =
-                              responseTab === "body"
-                                ? getFileExtension(response.headers)
-                                : "txt";
-                            const filename = `response-${Date.now()}.${extension}`;
-                            vscode.postMessage({
-                              type: "downloadResponse",
-                              content,
-                              filename,
-                              mimeType:
+                        <Tooltip text="Copy response to clipboard">
+                          <button
+                            className="action-btn"
+                            onClick={() => {
+                              const content =
                                 responseTab === "body"
-                                  ? response.headers["content-type"] ||
-                                    "text/plain"
-                                  : "text/plain",
-                            });
-                          }}
-                        >
-                          <DownloadIcon />
-                          Download
-                        </button>
-                        <button
-                          className="action-btn"
-                          title="Open response in VS Code editor"
-                          onClick={() => {
-                            const content =
-                              responseTab === "body"
-                                ? formatJson(response.data)
-                                : Object.entries(response.headers)
-                                    .map(([k, v]) => `${k}: ${v}`)
-                                    .join("\n");
-                            const extension =
-                              responseTab === "body"
-                                ? getFileExtension(response.headers)
-                                : "txt";
-                            vscode.postMessage({
-                              type: "openResponseInEditor",
-                              content,
-                              extension,
-                              mimeType:
+                                  ? formatJson(response.data)
+                                  : Object.entries(response.headers)
+                                      .map(([k, v]) => `${k}: ${v}`)
+                                      .join("\n");
+                              navigator.clipboard.writeText(content);
+                              vscode.postMessage({
+                                type: "showInfo",
+                                message: "Copied to clipboard!",
+                              });
+                            }}
+                          >
+                            <CopyIcon />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Download response">
+                          <button
+                            className="action-btn"
+                            onClick={() => {
+                              const content =
                                 responseTab === "body"
-                                  ? response.headers["content-type"] ||
-                                    "text/plain"
-                                  : "text/plain",
-                            });
-                          }}
-                        >
-                          <DocumentIcon />
-                          Open in Editor
-                        </button>
+                                  ? formatJson(response.data)
+                                  : Object.entries(response.headers)
+                                      .map(([k, v]) => `${k}: ${v}`)
+                                      .join("\n");
+                              const extension =
+                                responseTab === "body"
+                                  ? getFileExtension(response.headers)
+                                  : "txt";
+                              const filename = `response-${Date.now()}.${extension}`;
+                              vscode.postMessage({
+                                type: "downloadResponse",
+                                content,
+                                filename,
+                                mimeType:
+                                  responseTab === "body"
+                                    ? response.headers["content-type"] ||
+                                      "text/plain"
+                                    : "text/plain",
+                              });
+                            }}
+                          >
+                            <DownloadIcon />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Open response in VS Code editor">
+                          <button
+                            className="action-btn"
+                            title="Open response in VS Code editor"
+                            onClick={() => {
+                              const content =
+                                responseTab === "body"
+                                  ? formatJson(response.data)
+                                  : Object.entries(response.headers)
+                                      .map(([k, v]) => `${k}: ${v}`)
+                                      .join("\n");
+                              const extension =
+                                responseTab === "body"
+                                  ? getFileExtension(response.headers)
+                                  : "txt";
+                              vscode.postMessage({
+                                type: "openResponseInEditor",
+                                content,
+                                extension,
+                                mimeType:
+                                  responseTab === "body"
+                                    ? response.headers["content-type"] ||
+                                      "text/plain"
+                                    : "text/plain",
+                              });
+                            }}
+                          >
+                            <PencilIcon />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
 
