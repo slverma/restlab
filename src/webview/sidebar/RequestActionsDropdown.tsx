@@ -44,7 +44,7 @@ const RequestActionsDropdown: React.FC<{
 
   return (
     <div className="relative inline-flex" ref={dropdownRef}>
-      <Tooltip text="More Actions">
+      <Tooltip text="More Actions" position="left">
         <button
           className="action-btn w-5 h-5 group-hover:opacity-60 hover:!opacity-100 hover:bg-slate-500/10 hover:text-slate-400"
           onClick={handleClick}

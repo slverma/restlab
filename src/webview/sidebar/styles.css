@@ -33,43 +33,6 @@ body {
   background-color: var(--vscode-sideBar-background);
 }
 
-/* Custom Tooltip Styles */
-.custom-tooltip {
-  background: var(--vscode-editorWidget-background, #252526);
-  color: var(--vscode-editorWidget-foreground, #cccccc);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  z-index: 2147483647;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--vscode-editorWidget-border, #454545);
-  animation: tooltipFadeIn 0.15s ease-out;
-}
-
-.custom-tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: var(--vscode-editorWidget-background, #252526);
-}
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, calc(-100% + 4px));
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -100%);
-  }
-}
-
 .sidebar {
   display: flex;
   flex-direction: column;
