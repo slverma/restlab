@@ -165,6 +165,14 @@ const RequestEditorContent: React.FC = () => {
         >
           <div className="request-content">
             <div className="tabs">
+              {methodsWithBody.includes(config.method) && (
+                <button
+                  className={`tab ${activeTab === "body" ? "active" : ""}`}
+                  onClick={() => setActiveTab("body")}
+                >
+                  Body
+                </button>
+              )}
               <button
                 className={`tab ${activeTab === "headers" ? "active" : ""}`}
                 onClick={() => setActiveTab("headers")}
@@ -174,19 +182,9 @@ const RequestEditorContent: React.FC = () => {
                   <span className="badge">{config.headers?.length}</span>
                 )}
               </button>
-              {methodsWithBody.includes(config.method) && (
-                <button
-                  className={`tab ${activeTab === "body" ? "active" : ""}`}
-                  onClick={() => setActiveTab("body")}
-                >
-                  Body
-                </button>
-              )}
             </div>
 
             <div className="tab-content">
-              {activeTab === "headers" && <HeaderTab />}
-
               {activeTab === "body" &&
                 methodsWithBody.includes(config.method) && (
                   <div className="body-section">
@@ -240,6 +238,7 @@ const RequestEditorContent: React.FC = () => {
                     )}
                   </div>
                 )}
+              {activeTab === "headers" && <HeaderTab />}
             </div>
           </div>
         </div>
