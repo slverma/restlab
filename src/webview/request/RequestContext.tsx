@@ -137,7 +137,7 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
   const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("headers");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("body");
   const [responseTab, setResponseTab] = useState<ResponseTab>("body");
   const [isSaved, setIsSaved] = useState(true);
 
