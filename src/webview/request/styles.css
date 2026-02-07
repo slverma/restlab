@@ -73,7 +73,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  max-width: 1200px;
+  /* max-width: 1200px; */
   margin: 0 auto;
   padding: 0 24px;
   position: relative;
@@ -550,7 +550,7 @@ body {
   flex: 1;
   display: flex;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .split-container.horizontal {
@@ -566,7 +566,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .split-container.horizontal .request-panel {
@@ -588,7 +588,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .split-container.horizontal .response-panel {
@@ -1119,7 +1119,7 @@ body {
   flex-direction: column;
   position: relative;
   backdrop-filter: blur(8px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .response-section::before {
@@ -1180,6 +1180,7 @@ body {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  opacity: 1;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1331,7 +1332,7 @@ body {
 .response-content {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }

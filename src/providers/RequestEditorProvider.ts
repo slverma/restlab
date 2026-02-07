@@ -180,6 +180,30 @@ export class RequestEditorProvider {
             );
           }
           break;
+        case "openResponseInEditor":
+          // Determine language ID based on extension or mime type
+          let languageId = "plaintext";
+          if (message.extension === "json") {
+            languageId = "json";
+          } else if (message.extension === "xml") {
+            languageId = "xml";
+          } else if (message.extension === "html") {
+            languageId = "html";
+          } else if (message.mimeType?.includes("json")) {
+            languageId = "json";
+          } else if (message.mimeType?.includes("xml")) {
+            languageId = "xml";
+          } else if (message.mimeType?.includes("html")) {
+            languageId = "html";
+          }
+
+          // Open a new untitled document with the response content
+          const doc = await vscode.workspace.openTextDocument({
+            content: message.content,
+            language: languageId,
+          });
+          await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+          break;
       }
     });
   }

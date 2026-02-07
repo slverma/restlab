@@ -8,6 +8,8 @@ export const HTTP_METHODS = [
   "OPTIONS",
 ];
 
+export const METHODS_WITH_BODY = ["POST", "PUT", "PATCH"];
+
 export const COMMON_HEADERS = [
   "Accept",
   "Accept-Charset",

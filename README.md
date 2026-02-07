@@ -2,6 +2,10 @@
 
 A modern REST API client for Visual Studio Code. Test, debug, and manage your APIs with a beautiful, intuitive interface.
 
+Create unlimited collections and requests to organize all your API endpoints efficiently.
+
+![RESTLab](resources/rest-lab.png)
+
 ## ✨ Features
 
 ### 🚀 Full HTTP Request Support
@@ -48,32 +52,6 @@ A modern REST API client for Visual Studio Code. Test, debug, and manage your AP
 ## 📋 Requirements
 
 - VS Code 1.85.0 or higher
-
-## Development
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Build the extension
-npm run build
-
-# Watch for changes during development
-npm run watch
-```
-
-### Running the Extension
-
-1. Open this folder in VS Code
-2. Press `F5` to launch a new Extension Development Host window
-3. Click the RESTLab icon in the sidebar to start using the extension
 
 ## License
 
