@@ -14,13 +14,14 @@ import SendIcon from "../components/icons/SendIcon";
 import SaveIcon from "../components/icons/SaveIcon";
 import CodeIcon from "../components/icons/CodeIcon";
 import SplitIcon from "../components/icons/SplitIcon";
-import { CONTENT_TYPES, HTTP_METHODS } from "../config";
+import { CONTENT_TYPES, HTTP_METHODS, METHODS_WITH_BODY } from "../config";
 import HeaderTab from "./HeaderTab";
 import BodyEditor from "./BodyEditor";
 import DownloadIcon from "../components/icons/DownloadIcon";
 import WarningIcon from "../components/icons/WarningIcon";
 import BeautifyIcon from "../components/icons/BeautifyIcon";
 import CopyIcon from "../components/icons/CopyIcon";
+import DocumentIcon from "../components/icons/DocumentIcon";
 
 const RequestEditorContent: React.FC = () => {
   const {
@@ -40,7 +41,6 @@ const RequestEditorContent: React.FC = () => {
     requestEditorLanguage,
     responseEditorLanguage,
     responseBodyValue,
-    methodsWithBody,
     setActiveTab,
     setResponseTab,
     handleConfigChange,
@@ -75,7 +75,7 @@ const RequestEditorContent: React.FC = () => {
             handleConfigChange({ method: e.target.value });
             // Switch to headers tab if body tab is active and new method doesn't support body
             if (
-              !methodsWithBody.includes(e.target.value) &&
+              !METHODS_WITH_BODY.includes(e.target.value) &&
               activeTab === "body"
             ) {
               setActiveTab("headers");
@@ -165,7 +165,7 @@ const RequestEditorContent: React.FC = () => {
         >
           <div className="request-content">
             <div className="tabs">
-              {methodsWithBody.includes(config.method) && (
+              {METHODS_WITH_BODY.includes(config.method) && (
                 <button
                   className={`tab ${activeTab === "body" ? "active" : ""}`}
                   onClick={() => setActiveTab("body")}
@@ -186,7 +186,7 @@ const RequestEditorContent: React.FC = () => {
 
             <div className="tab-content">
               {activeTab === "body" &&
-                methodsWithBody.includes(config.method) && (
+                METHODS_WITH_BODY.includes(config.method) && (
                   <div className="body-section">
                     <div className="content-type-selector">
                       <label>Content Type:</label>
@@ -369,6 +369,35 @@ const RequestEditorContent: React.FC = () => {
                         >
                           <DownloadIcon />
                           Download
+                        </button>
+                        <button
+                          className="action-btn"
+                          title="Open response in VS Code editor"
+                          onClick={() => {
+                            const content =
+                              responseTab === "body"
+                                ? formatJson(response.data)
+                                : Object.entries(response.headers)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join("\n");
+                            const extension =
+                              responseTab === "body"
+                                ? getFileExtension(response.headers)
+                                : "txt";
+                            vscode.postMessage({
+                              type: "openResponseInEditor",
+                              content,
+                              extension,
+                              mimeType:
+                                responseTab === "body"
+                                  ? response.headers["content-type"] ||
+                                    "text/plain"
+                                  : "text/plain",
+                            });
+                          }}
+                        >
+                          <DocumentIcon />
+                          Open in Editor
                         </button>
                       </div>
                     </div>
