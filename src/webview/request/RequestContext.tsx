@@ -337,28 +337,6 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
   const handleBeautifyJson = useCallback(async () => {
     if (!config.body) return;
 
-    const bodyEditor = bodyEditorRef.current;
-    if (bodyEditor && config.contentType === "application/json") {
-      try {
-        const formatAction = bodyEditor.getAction(
-          "editor.action.formatDocument",
-        );
-        if (formatAction) {
-          await formatAction.run();
-          const currentValue = bodyEditor.getValue();
-          if (currentValue !== config.body) {
-            vscode.postMessage({
-              type: "showInfo",
-              message: "JSON formatted successfully!",
-            });
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Monaco format failed:", error);
-      }
-    }
-
     try {
       const formatted = formatJson(config.body);
       if (formatted !== config.body) {
@@ -373,13 +351,13 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
           message: "JSON is already formatted",
         });
       }
-    } catch {
+    } catch (error) {
       vscode.postMessage({
         type: "showError",
         message: "Failed to format: Invalid JSON",
       });
     }
-  }, [config.body, config.contentType, handleConfigChange]);
+  }, [config.body, handleConfigChange]);
 
   // Header handlers
   const handleAddHeader = useCallback(() => {
