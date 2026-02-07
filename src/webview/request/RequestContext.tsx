@@ -60,7 +60,6 @@ interface RequestContextValue {
   requestEditorLanguage: string;
   responseEditorLanguage: string;
   responseBodyValue: string;
-  methodsWithBody: string[];
 
   // State setters
   setActiveTab: (tab: ActiveTab) => void;
@@ -137,7 +136,7 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
   const [folderConfig, setFolderConfig] = useState<FolderConfig>({});
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("body");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("headers");
   const [responseTab, setResponseTab] = useState<ResponseTab>("body");
   const [isSaved, setIsSaved] = useState(true);
 
@@ -152,9 +151,6 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
-
-  // Constants
-  const methodsWithBody = ["POST", "PUT", "PATCH"];
 
   // Computed values
   const requestEditorLanguage = useMemo(
@@ -505,7 +501,6 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
     requestEditorLanguage,
     responseEditorLanguage,
     responseBodyValue,
-    methodsWithBody,
 
     // State setters
     setActiveTab,
