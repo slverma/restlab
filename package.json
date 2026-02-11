@@ -1,9 +1,9 @@
 {
   "name": "restlab",
-  "displayName": "RESTLab",
+  "displayName": "REST Lab",
   "description": "A modern REST API client for VS Code - Test, debug, and manage your APIs with a beautiful interface",
   "publisher": "slverma",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "icon": "resources/restlab-icon.png",
   "repository": {
     "type": "git",
@@ -29,7 +29,28 @@
     "swagger",
     "openapi",
     "debug",
-    "fetch"
+    "fetch",
+    "fetchclient",
+    "restclient",
+    "rest client",
+    "http request",
+    "api client",
+    "graphql",
+    "thunder client",
+    "webhook",
+    "api development",
+    "api debugging",
+    "api management",
+    "api testing tool",
+    "api testing extension",
+    "rest api testing",
+    "rest api client",
+    "rest api debugging",
+    "rest api management",
+    "rest api testing tool",
+    "rest api testing extension",
+    "rest api development",
+    "echoApi"
   ],
   "engines": {
     "vscode": "^1.85.0"
@@ -45,7 +66,7 @@
       "activitybar": [
         {
           "id": "restlab-sidebar",
-          "title": "RESTLab",
+          "title": "REST Lab",
           "icon": "resources/sidebar-icon.svg"
         }
       ]
@@ -55,7 +76,7 @@
         {
           "type": "webview",
           "id": "restlab-sidebar-view",
-          "name": "RESTLab",
+          "name": "REST Lab",
           "icon": "resources/sidebar-icon.svg"
         }
       ]
@@ -64,12 +85,12 @@
       {
         "command": "restlab.createFolder",
         "title": "Create Folder",
-        "category": "RESTLab"
+        "category": "REST Lab"
       },
       {
         "command": "restlab.importCollection",
         "title": "Import Collection",
-        "category": "RESTLab"
+        "category": "REST Lab"
       }
     ]
   },

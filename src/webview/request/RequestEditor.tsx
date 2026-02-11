@@ -56,19 +56,6 @@ const RequestEditorContent: React.FC = () => {
 
   return (
     <div className="request-editor" ref={containerRef}>
-      <div className="request-header">
-        <div className="header-info">
-          <input
-            type="text"
-            value={config.name}
-            onChange={(e) => handleConfigChange({ name: e.target.value })}
-            className="request-name-input"
-            placeholder="Request name"
-          />
-          <span className="subtitle">HTTP Request</span>
-        </div>
-      </div>
-
       <div className="request-bar">
         <select
           value={config.method}

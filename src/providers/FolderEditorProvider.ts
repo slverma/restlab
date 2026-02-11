@@ -21,11 +21,19 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
+  // Update panel title for an open folder editor
+  public static updatePanelTitle(folderId: string, newTitle: string): void {
+    const panel = FolderEditorProvider.openPanels.get(folderId);
+    if (panel) {
+      panel.title = `📁 ${newTitle}`;
+    }
+  }
+
   public static openFolderEditor(
     context: vscode.ExtensionContext,
     folderId: string,
     folderName: string,
-    sidebarProvider?: SidebarProvider
+    sidebarProvider?: SidebarProvider,
   ) {
     // Check if panel already exists for this folder
     const existingPanel = FolderEditorProvider.openPanels.get(folderId);
@@ -44,7 +52,7 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [context.extensionUri],
-      }
+      },
     );
 
     // Store the panel reference
@@ -59,12 +67,12 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
     panel.webview.html = provider._getHtmlForWebview(
       panel.webview,
       folderId,
-      folderName
+      folderName,
     );
 
     // Load saved config
     const savedConfig = context.globalState.get<FolderConfig>(
-      `restlab.folder.${folderId}`
+      `restlab.folder.${folderId}`,
     );
 
     // Handle messages from webview
@@ -79,7 +87,7 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
               // Get the last parent's inherited config
               const lastParent = parentChain[parentChain.length - 1];
               inheritedConfig = sidebarProvider.getInheritedConfig(
-                lastParent.id
+                lastParent.id,
               );
             }
           }
@@ -93,10 +101,10 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
         case "saveConfig":
           await context.globalState.update(
             `restlab.folder.${folderId}`,
-            message.config
+            message.config,
           );
           vscode.window.showInformationMessage(
-            `Folder "${folderName}" configuration saved!`
+            `Folder "${folderName}" configuration saved!`,
           );
           break;
       }
@@ -106,7 +114,7 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
   public async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): Promise<void> {
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -116,30 +124,30 @@ export class FolderEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       "",
-      ""
+      "",
     );
   }
 
   private _getHtmlForWebview(
     webview: vscode.Webview,
     folderId: string,
-    folderName: string
+    folderName: string,
   ): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "dist",
         "editor",
-        "index.js"
-      )
+        "index.js",
+      ),
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "dist",
         "editor",
-        "index.css"
-      )
+        "index.css",
+      ),
     );
 
     const nonce = getNonce();

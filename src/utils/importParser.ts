@@ -113,7 +113,7 @@ interface RESTLabCollection {
 export function parseImportedFile(
   content: string,
   fileName: string,
-  provider?: string
+  provider?: string,
 ): ImportResult {
   try {
     const json = JSON.parse(content);
@@ -124,7 +124,7 @@ export function parseImportedFile(
         return parseRESTLabCollection(json);
       }
       throw new Error(
-        "The selected file does not appear to be a valid RESTLab collection."
+        "The selected file does not appear to be a valid REST Lab collection.",
       );
     }
 
@@ -133,7 +133,7 @@ export function parseImportedFile(
         return parsePostmanCollection(json);
       }
       throw new Error(
-        "The selected file does not appear to be a valid Postman collection."
+        "The selected file does not appear to be a valid Postman collection.",
       );
     }
 
@@ -142,7 +142,7 @@ export function parseImportedFile(
         return parseThunderClientCollection(json);
       }
       throw new Error(
-        "The selected file does not appear to be a valid Thunder Client collection."
+        "The selected file does not appear to be a valid Thunder Client collection.",
       );
     }
 
@@ -155,7 +155,7 @@ export function parseImportedFile(
       return parseThunderClientCollection(json);
     } else {
       throw new Error(
-        "Unknown format. Please import a RESTLab, Postman, or Thunder Client collection."
+        "Unknown format. Please import a RESTLab, Postman, or Thunder Client collection.",
       );
     }
   } catch (error) {
@@ -296,7 +296,7 @@ function parsePostmanCollection(collection: PostmanCollection): ImportResult {
   let baseUrl = "";
   if (collection.variable) {
     const baseUrlVar = collection.variable.find(
-      (v) => v.key === "baseUrl" || v.key === "base_url" || v.key === "host"
+      (v) => v.key === "baseUrl" || v.key === "base_url" || v.key === "host",
     );
     if (baseUrlVar) {
       baseUrl = baseUrlVar.value;
@@ -317,7 +317,7 @@ function parsePostmanItems(
   items: PostmanItem[],
   parentFolder: Folder,
   result: ImportResult,
-  baseUrl: string
+  baseUrl: string,
 ): void {
   for (const item of items) {
     if (item.item && item.item.length > 0) {
@@ -357,7 +357,7 @@ function parsePostmanItems(
 function parsePostmanRequest(
   item: PostmanItem,
   folderId: string,
-  baseUrl: string
+  baseUrl: string,
 ): ImportedRequest {
   const req = item.request!;
   const requestId = `request-${Date.now()}-${Math.random()
@@ -399,7 +399,7 @@ function parsePostmanRequest(
         body = req.body.raw || "";
         // Try to detect content type from headers
         const ctHeader = headers.find(
-          (h) => h.key.toLowerCase() === "content-type"
+          (h) => h.key.toLowerCase() === "content-type",
         );
         if (ctHeader) {
           contentType = ctHeader.value;
@@ -416,7 +416,7 @@ function parsePostmanRequest(
           body = req.body.urlencoded
             .map(
               (p) =>
-                `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`
+                `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`,
             )
             .join("&");
         }
@@ -441,7 +441,7 @@ function parsePostmanRequest(
 }
 
 function parseThunderClientCollection(
-  collection: ThunderCollection
+  collection: ThunderCollection,
 ): ImportResult {
   const result: ImportResult = {
     folders: [],
@@ -488,7 +488,7 @@ function parseThunderClientCollection(
 function parseThunderFolders(
   folders: ThunderFolder[],
   parentFolder: Folder,
-  result: ImportResult
+  result: ImportResult,
 ): void {
   for (const folder of folders) {
     const subfolder: Folder = {
@@ -531,7 +531,7 @@ function parseThunderFolders(
 
 function parseThunderRequest(
   req: ThunderRequest,
-  folderId: string
+  folderId: string,
 ): ImportedRequest {
   const requestId = `request-${Date.now()}-${Math.random()
     .toString(36)
@@ -557,7 +557,7 @@ function parseThunderRequest(
       contentType = "application/x-www-form-urlencoded";
       body = req.body.form
         .map(
-          (p) => `${encodeURIComponent(p.name)}=${encodeURIComponent(p.value)}`
+          (p) => `${encodeURIComponent(p.name)}=${encodeURIComponent(p.value)}`,
         )
         .join("&");
     } else if (req.body.type === "formdata") {

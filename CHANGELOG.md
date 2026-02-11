@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.9] - 2026-02-12
+
+### Changed
+
+#### Documentation Improvements
+
+- **README Redesign** - Completely redesigned README.md with comprehensive features showcase
+  - Added 14 distinct feature sections with dedicated GIF placeholder areas
+  - Organized features with horizontal dividers for better readability
+  - Added visual badges for VS Code Marketplace and License
+  - Included "Getting Started" section with installation and quick start guide
+  - Added "Usage Tips" section for best practices
+  - Added "Contributing" section
+  - Improved overall formatting with centered sections and professional layout
+  - Each feature now has a dedicated spot for animated GIF demonstrations
+
+---
+
 ## [0.0.8] - 2026-01-31
 
 ### Added
