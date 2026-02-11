@@ -1,19 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
-import RESTLabIcon from "../components/icons/RestLabIcon";
-import PostmanIcon from "../components/icons/PostmanIcon";
-import ThunderClientIcon from "../components/icons/ThunderClientIcon";
-import { Folder, Request } from "../types/internal.types";
+import React, { useEffect, useState } from "react";
 import Tooltip from "../components/Tooltip";
 import ChevronIcon from "../components/icons/ChevronIcon";
-import FolderIcon from "../components/icons/FolderIcon";
-import PlusIcon from "../components/icons/PlusIcon";
 import EmptyGlassIcon from "../components/icons/EmptyGlassIcon";
+import FolderIcon from "../components/icons/FolderIcon";
 import NoItemsIcon from "../components/icons/NoItemsIcon";
-import TrashIcon from "../components/icons/TrashIcon";
-import CopyIcon from "../components/icons/CopyIcon";
+import PlusIcon from "../components/icons/PlusIcon";
+import { Folder, Request } from "../types/internal.types";
 import FolderActionsDropdown from "./FolderActionsDropdown";
-import RequestActionsDropdown from "./RequestActionsDropdown";
 import ImportDropdown from "./ImportDropdown";
+import RequestActionsDropdown from "./RequestActionsDropdown";
 
 declare function acquireVsCodeApi(): {
   postMessage: (message: unknown) => void;
@@ -23,30 +18,6 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 
-// Import Provider type for extensibility
-interface ImportProvider {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-}
-
-const IMPORT_PROVIDERS: ImportProvider[] = [
-  {
-    id: "restlab",
-    name: "RESTLab",
-    icon: <RESTLabIcon />,
-  },
-  {
-    id: "postman",
-    name: "Postman",
-    icon: <PostmanIcon />,
-  },
-  {
-    id: "thunder-client",
-    name: "Thunder Client",
-    icon: <ThunderClientIcon />,
-  },
-];
 // Drag data type constants
 const DRAG_TYPE_REQUEST = "application/x-restlab-request";
 const DRAG_TYPE_FOLDER = "application/x-restlab-folder";
@@ -57,6 +28,229 @@ interface DragData {
   sourceFolderId?: string;
   name: string;
 }
+
+const getMethodColor = (method: string) => {
+  switch (method) {
+    case "GET":
+      return "method-get";
+    case "POST":
+      return "method-post";
+    case "PUT":
+      return "method-put";
+    case "PATCH":
+      return "method-patch";
+    case "DELETE":
+      return "method-delete";
+    default:
+      return "";
+  }
+};
+
+interface FolderItemProps {
+  folder: Folder;
+  depth?: number;
+  isDragging: boolean;
+  dragOverFolderId: string | null;
+  expandedFolders: Set<string>;
+  onToggleFolder: (folderId: string) => void;
+  onDragStart: (
+    e: React.DragEvent,
+    type: "request" | "folder",
+    id: string,
+    name: string,
+    sourceFolderId?: string,
+  ) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: React.DragEvent, folderId: string) => void;
+  onDragLeave: (e: React.DragEvent, folderId: string) => void;
+  onDrop: (e: React.DragEvent, targetFolderId: string) => void;
+  onAddRequest: (e: React.MouseEvent, folderId: string) => void;
+  onAddSubfolder: (e: React.MouseEvent, parentFolderId: string) => void;
+  onOpenFolder: (e: React.MouseEvent, folder: Folder) => void;
+  onExportCollection: (folderId: string, format: string) => void;
+  onDuplicateFolder: (e: React.MouseEvent, folderId: string) => void;
+  onRenameFolder: (e: React.MouseEvent, folderId: string) => void;
+  onDeleteFolder: (e: React.MouseEvent, folderId: string) => void;
+  onOpenRequest: (request: Request) => void;
+  onRenameRequest: (
+    e: React.MouseEvent,
+    requestId: string,
+    folderId: string,
+  ) => void;
+  onDuplicateRequest: (
+    e: React.MouseEvent,
+    requestId: string,
+    folderId: string,
+  ) => void;
+  onDeleteRequest: (
+    e: React.MouseEvent,
+    requestId: string,
+    folderId: string,
+  ) => void;
+}
+
+const FolderItem: React.FC<FolderItemProps> = ({
+  folder,
+  depth = 0,
+  isDragging,
+  dragOverFolderId,
+  expandedFolders,
+  onToggleFolder,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onAddRequest,
+  onAddSubfolder,
+  onOpenFolder,
+  onExportCollection,
+  onDuplicateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+  onOpenRequest,
+  onRenameRequest,
+  onDuplicateRequest,
+  onDeleteRequest,
+}) => {
+  const isDropTarget = dragOverFolderId === folder.id;
+
+  return (
+    <div key={folder.id} className="mb-0.5" data-folder-id={folder.id}>
+      <div
+        className={`group flex items-center gap-2.5 py-2.5 px-3 mb-1 cursor-pointer rounded-lg transition-all duration-200 border border-transparent hover:bg-glass hover:border-glass relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-restlab-gradient before:rounded-r before:transition-all before:duration-200 hover:before:h-[60%] focus:outline-none focus:border-sky-400 focus:bg-sky-500/10 focus:before:h-[80%] ${isDropTarget ? "drop-target-active" : ""} ${isDragging ? "dragging-active" : ""}`}
+        onClick={() => onToggleFolder(folder.id)}
+        role="button"
+        tabIndex={0}
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+        draggable
+        onDragStart={(e) => onDragStart(e, "folder", folder.id, folder.name)}
+        onDragEnd={onDragEnd}
+        onDragOver={(e) => onDragOver(e, folder.id)}
+        onDragLeave={(e) => onDragLeave(e, folder.id)}
+        onDrop={(e) => onDrop(e, folder.id)}
+      >
+        <ChevronIcon
+          className={expandedFolders.has(folder.id) ? "rotate-90" : ""}
+        />
+
+        <FolderIcon className="flex-shrink-0 text-vscode transition-colors duration-150 group-hover:text-sky-400 group-hover:drop-shadow-[0_0_4px_rgba(56,189,248,0.4)]" />
+        <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium">
+          {folder.name}
+        </span>
+        <div className="flex items-center gap-1 ml-auto">
+          <Tooltip text="Add Request">
+            <button
+              className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-sky-500/10 hover:text-sky-400 hover:shadow-glow"
+              onClick={(e) => onAddRequest(e, folder.id)}
+            >
+              <PlusIcon />
+            </button>
+          </Tooltip>
+          <FolderActionsDropdown
+            folder={folder}
+            onAddSubfolder={onAddSubfolder}
+            onOpenFolder={onOpenFolder}
+            onExport={onExportCollection}
+            onDuplicate={onDuplicateFolder}
+            onRename={onRenameFolder}
+            onDelete={onDeleteFolder}
+          />
+        </div>
+      </div>
+
+      {expandedFolders.has(folder.id) && (
+        <div className="relative before:content-[''] before:absolute before:left-5 before:top-0 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-white/10 before:to-transparent">
+          {/* Render subfolders first */}
+          {folder.subfolders &&
+            folder.subfolders.map((subfolder) => (
+              <FolderItem
+                key={subfolder.id}
+                folder={subfolder}
+                depth={depth + 1}
+                isDragging={isDragging}
+                dragOverFolderId={dragOverFolderId}
+                expandedFolders={expandedFolders}
+                onToggleFolder={onToggleFolder}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                onAddRequest={onAddRequest}
+                onAddSubfolder={onAddSubfolder}
+                onOpenFolder={onOpenFolder}
+                onExportCollection={onExportCollection}
+                onDuplicateFolder={onDuplicateFolder}
+                onRenameFolder={onRenameFolder}
+                onDeleteFolder={onDeleteFolder}
+                onOpenRequest={onOpenRequest}
+                onRenameRequest={onRenameRequest}
+                onDuplicateRequest={onDuplicateRequest}
+                onDeleteRequest={onDeleteRequest}
+              />
+            ))}
+
+          {/* Render requests */}
+          <div
+            className={`pl-5 ${isDropTarget ? "drop-zone-highlight" : ""}`}
+            style={{ paddingLeft: `${20 + depth * 16}px` }}
+            onDragOver={(e) => onDragOver(e, folder.id)}
+            onDrop={(e) => onDrop(e, folder.id)}
+          >
+            {(!folder.requests || folder.requests.length === 0) &&
+            (!folder.subfolders || folder.subfolders.length === 0) ? (
+              <div
+                className={`py-2 px-3 text-xs text-vscode-muted opacity-70 italic ${isDropTarget ? "drop-hint-visible" : ""}`}
+              >
+                <span>
+                  {isDropTarget ? "Drop here to add" : "No items yet"}
+                </span>
+              </div>
+            ) : (
+              folder.requests?.map((request) => (
+                <div
+                  key={request.id}
+                  className={`group flex items-center gap-2 py-2 px-2.5 mb-0.5 cursor-pointer rounded-md transition-all duration-200 border border-transparent ml-2.5 relative before:content-[''] before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-0 before:bg-restlab-gradient before:rounded-sm before:transition-all before:duration-200 hover:bg-glass hover:border-glass hover:before:h-1/2 ${isDragging ? "dragging-active" : ""}`}
+                  onClick={() => onOpenRequest(request)}
+                  role="button"
+                  tabIndex={0}
+                  draggable
+                  onDragStart={(e) =>
+                    onDragStart(
+                      e,
+                      "request",
+                      request.id,
+                      request.name,
+                      folder.id,
+                    )
+                  }
+                  onDragEnd={onDragEnd}
+                >
+                  <span
+                    className={`method-badge ${getMethodColor(request.method)}`}
+                  >
+                    {request.method}
+                  </span>
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
+                    {request.name}
+                  </span>
+                  <RequestActionsDropdown
+                    request={request}
+                    folderId={folder.id}
+                    onRename={onRenameRequest}
+                    onDuplicate={onDuplicateRequest}
+                    onDelete={onDeleteRequest}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const Sidebar: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -222,11 +416,16 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleDragLeave = (e: React.DragEvent, folderId: string) => {
     e.preventDefault();
-    // Only clear if we're actually leaving the folder element
+    e.stopPropagation();
+
+    // Only clear if we're leaving this specific folder
     const relatedTarget = e.relatedTarget as HTMLElement;
-    if (!relatedTarget?.closest("[data-folder-id]")) {
+    const currentTarget = e.currentTarget as HTMLElement;
+
+    // Check if we're leaving to outside the current folder
+    if (!currentTarget.contains(relatedTarget)) {
       setDragOverFolderId(null);
     }
   };
@@ -288,154 +487,11 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const getMethodColor = (method: string) => {
-    switch (method) {
-      case "GET":
-        return "method-get";
-      case "POST":
-        return "method-post";
-      case "PUT":
-        return "method-put";
-      case "PATCH":
-        return "method-patch";
-      case "DELETE":
-        return "method-delete";
-      default:
-        return "";
-    }
-  };
-
-  // Recursive component for rendering folders
-  const FolderItem: React.FC<{ folder: Folder; depth?: number }> = ({
-    folder,
-    depth = 0,
-  }) => {
-    const isDropTarget = dragOverFolderId === folder.id;
-
-    return (
-      <div key={folder.id} className="mb-0.5" data-folder-id={folder.id}>
-        <div
-          className={`group flex items-center gap-2.5 py-2.5 px-3 mb-1 cursor-pointer rounded-lg transition-all duration-200 border border-transparent hover:bg-glass hover:border-glass relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-restlab-gradient before:rounded-r before:transition-all before:duration-200 hover:before:h-[60%] focus:outline-none focus:border-sky-400 focus:bg-sky-500/10 focus:before:h-[80%] ${isDropTarget ? "drop-target-active" : ""} ${isDragging ? "dragging-active" : ""}`}
-          onClick={() => handleToggleFolder(folder.id)}
-          role="button"
-          tabIndex={0}
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
-          draggable
-          onDragStart={(e) =>
-            handleDragStart(e, "folder", folder.id, folder.name)
-          }
-          onDragEnd={handleDragEnd}
-          onDragOver={(e) => handleDragOver(e, folder.id)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, folder.id)}
-        >
-          <ChevronIcon
-            className={expandedFolders.has(folder.id) ? "rotate-90" : ""}
-          />
-
-          <FolderIcon className="flex-shrink-0 text-vscode transition-colors duration-150 group-hover:text-sky-400 group-hover:drop-shadow-[0_0_4px_rgba(56,189,248,0.4)]" />
-          <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium">
-            {folder.name}
-          </span>
-          <div className="flex items-center gap-1 ml-auto">
-            <Tooltip text="Add Request">
-              <button
-                className="action-btn group-hover:opacity-60 hover:!opacity-100 hover:bg-sky-500/10 hover:text-sky-400 hover:shadow-glow"
-                onClick={(e) => handleAddRequest(e, folder.id)}
-              >
-                <PlusIcon />
-              </button>
-            </Tooltip>
-            <FolderActionsDropdown
-              folder={folder}
-              onAddSubfolder={handleAddSubfolder}
-              onOpenFolder={handleOpenFolder}
-              onExport={handleExportCollection}
-              onDuplicate={handleDuplicateFolder}
-              onRename={handleRenameFolder}
-              onDelete={handleDeleteFolder}
-            />
-          </div>
-        </div>
-
-        {expandedFolders.has(folder.id) && (
-          <div className="relative before:content-[''] before:absolute before:left-5 before:top-0 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-white/10 before:to-transparent">
-            {/* Render subfolders first */}
-            {folder.subfolders &&
-              folder.subfolders.map((subfolder) => (
-                <FolderItem
-                  key={subfolder.id}
-                  folder={subfolder}
-                  depth={depth + 1}
-                />
-              ))}
-
-            {/* Render requests */}
-            <div
-              className={`pl-5 ${isDropTarget ? "drop-zone-highlight" : ""}`}
-              style={{ paddingLeft: `${20 + depth * 16}px` }}
-              onDragOver={(e) => handleDragOver(e, folder.id)}
-              onDrop={(e) => handleDrop(e, folder.id)}
-            >
-              {(!folder.requests || folder.requests.length === 0) &&
-              (!folder.subfolders || folder.subfolders.length === 0) ? (
-                <div
-                  className={`py-2 px-3 text-xs text-vscode-muted opacity-70 italic ${isDropTarget ? "drop-hint-visible" : ""}`}
-                >
-                  <span>
-                    {isDropTarget ? "Drop here to add" : "No items yet"}
-                  </span>
-                </div>
-              ) : (
-                folder.requests?.map((request) => (
-                  <div
-                    key={request.id}
-                    className={`group flex items-center gap-2 py-2 px-2.5 mb-0.5 cursor-pointer rounded-md transition-all duration-200 border border-transparent ml-2.5 relative before:content-[''] before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-0 before:bg-restlab-gradient before:rounded-sm before:transition-all before:duration-200 hover:bg-glass hover:border-glass hover:before:h-1/2 ${isDragging ? "dragging-active" : ""}`}
-                    onClick={() => handleOpenRequest(request)}
-                    role="button"
-                    tabIndex={0}
-                    draggable
-                    onDragStart={(e) =>
-                      handleDragStart(
-                        e,
-                        "request",
-                        request.id,
-                        request.name,
-                        folder.id,
-                      )
-                    }
-                    onDragEnd={handleDragEnd}
-                  >
-                    <span
-                      className={`method-badge ${getMethodColor(request.method)}`}
-                    >
-                      {request.method}
-                    </span>
-                    <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
-                      {request.name}
-                    </span>
-                    <RequestActionsDropdown
-                      request={request}
-                      folderId={folder.id}
-                      onRename={handleRenameRequest}
-                      onDuplicate={handleDuplicateRequest}
-                      onDelete={handleDeleteRequest}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col h-screen">
       <div className="p-4 border-b border-glass bg-gradient-to-b from-sky-500/5 to-transparent relative after:content-[''] after:absolute after:-bottom-px after:left-4 after:right-4 after:h-px after:bg-restlab-gradient after:opacity-30">
         <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-gradient mb-4 before:content-[''] before:inline-block before:w-2 before:h-2 before:bg-restlab-gradient before:rounded-sm before:shadow-glow">
-          RESTLab
+          REST Lab
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -471,7 +527,31 @@ export const Sidebar: React.FC = () => {
         ) : (
           <>
             {folders.map((folder) => (
-              <FolderItem key={folder.id} folder={folder} depth={0} />
+              <FolderItem
+                key={folder.id}
+                folder={folder}
+                depth={0}
+                isDragging={isDragging}
+                dragOverFolderId={dragOverFolderId}
+                expandedFolders={expandedFolders}
+                onToggleFolder={handleToggleFolder}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onAddRequest={handleAddRequest}
+                onAddSubfolder={handleAddSubfolder}
+                onOpenFolder={handleOpenFolder}
+                onExportCollection={handleExportCollection}
+                onDuplicateFolder={handleDuplicateFolder}
+                onRenameFolder={handleRenameFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onOpenRequest={handleOpenRequest}
+                onRenameRequest={handleRenameRequest}
+                onDuplicateRequest={handleDuplicateRequest}
+                onDeleteRequest={handleDeleteRequest}
+              />
             ))}
             {/* Drop zone indicator at root level */}
             {isDragging && (

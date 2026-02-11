@@ -8,7 +8,7 @@ import ImportIcon from "../components/icons/ImportIcon";
 const IMPORT_PROVIDERS: ImportProvider[] = [
   {
     id: "restlab",
-    name: "RESTLab",
+    name: "REST Lab",
     icon: <RESTLabIcon />,
   },
   {

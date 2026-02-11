@@ -1,11 +1,11 @@
 import React from "react";
+import FileIcon from "../components/icons/FileIcon";
+import PlusIcon from "../components/icons/PlusIcon";
+import TextIcon from "../components/icons/TextIcon";
+import TrashIcon from "../components/icons/TrashIcon";
+import UploadIcon from "../components/icons/UploadIcon";
 import { hasFileFields } from "../helpers/helper";
 import { useRequestContext } from "./RequestContext";
-import PlusIcon from "../components/icons/PlusIcon";
-import FileIcon from "../components/icons/FileIcon";
-import TextIcon from "../components/icons/TextIcon";
-import UploadIcon from "../components/icons/UploadIcon";
-import TrashIcon from "../components/icons/TrashIcon";
 
 const FormFieldEditor = () => {
   const {
@@ -100,8 +100,7 @@ const FormFieldEditor = () => {
 
       {hasFileFields(config.formData) && (
         <p className="file-warning">
-          ⚠️ File uploads require multipart/form-data. Files will be sent as
-          base64 encoded.
+          ⚠️ File uploads require multipart/form-data.
         </p>
       )}
     </div>

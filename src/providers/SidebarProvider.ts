@@ -6,6 +6,8 @@ import {
   exportToThunderClient,
   exportToRESTLab,
 } from "../utils/exportParser";
+import { FolderEditorProvider } from "./FolderEditorProvider";
+import { RequestEditorProvider } from "./RequestEditorProvider";
 
 export interface Request {
   id: string;
@@ -356,6 +358,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       folder.name = newName;
       this._saveFolders();
       this._sendFoldersToWebview();
+      // Update the panel title if the folder editor is open
+      FolderEditorProvider.updatePanelTitle(folderId, newName);
       vscode.window.showInformationMessage(`Renamed folder to "${newName}"`);
     }
   }
@@ -402,6 +406,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
       this._saveFolders();
       this._sendFoldersToWebview();
+      // Update the panel title if the request editor is open
+      RequestEditorProvider.updatePanelTitle(requestId, newName);
       vscode.window.showInformationMessage(`Renamed request to "${newName}"`);
     }
   }
@@ -766,7 +772,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private async _handleImportCollection(provider?: string) {
     const providerName =
       provider === "restlab"
-        ? "RESTLab"
+        ? "REST Lab"
         : provider === "postman"
           ? "Postman"
           : provider === "thunder-client"
@@ -925,7 +931,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
                 <link href="${styleUri}" rel="stylesheet">
-                <title>RESTLab</title>
+                <title>REST Lab</title>
             </head>
             <body>
                 <div id="root"></div>

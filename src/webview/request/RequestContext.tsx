@@ -141,7 +141,7 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
   const [isSaved, setIsSaved] = useState(true);
 
   // Layout state
-  const [splitLayout, setSplitLayout] = useState<SplitLayout>("horizontal");
+  const [splitLayout, setSplitLayout] = useState<SplitLayout>("vertical");
   const [requestSize, setRequestSize] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
 
