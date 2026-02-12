@@ -17,7 +17,7 @@ import ChevronIcon from "../components/icons/ChevronIcon";
 export const EXPORT_FORMATS = [
   {
     id: "restlab",
-    name: "RESTLab",
+    name: "REST Lab",
     icon: <RESTLabIcon />,
   },
   {

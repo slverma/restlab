@@ -4,7 +4,7 @@ import { FolderEditorProvider } from "./providers/FolderEditorProvider";
 import { RequestEditorProvider } from "./providers/RequestEditorProvider";
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log("RESTLab extension is now active!");
+  console.log("REST Lab extension is now active!");
 
   // Initialize the sidebar provider
   const sidebarProvider = new SidebarProvider(context.extensionUri, context);
@@ -13,8 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       "restlab-sidebar-view",
-      sidebarProvider
-    )
+      sidebarProvider,
+    ),
   );
 
   // Register the folder editor provider
@@ -27,8 +27,8 @@ export function activate(context: vscode.ExtensionContext) {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
-      }
-    )
+      },
+    ),
   );
 
   // Register the request editor provider
@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (folderName) {
         sidebarProvider.addFolder(folderName);
       }
-    })
+    }),
   );
 
   // Register command to open folder configuration
@@ -57,10 +57,10 @@ export function activate(context: vscode.ExtensionContext) {
           context,
           folderId,
           folderName,
-          sidebarProvider
+          sidebarProvider,
         );
-      }
-    )
+      },
+    ),
   );
 
   // Register command to open request editor
@@ -73,17 +73,17 @@ export function activate(context: vscode.ExtensionContext) {
           requestId,
           requestName,
           folderId,
-          sidebarProvider
+          sidebarProvider,
         );
-      }
-    )
+      },
+    ),
   );
 
   // Register command to import collection
   context.subscriptions.push(
     vscode.commands.registerCommand("restlab.importCollection", async () => {
       await sidebarProvider.importCollection();
-    })
+    }),
   );
 }
 

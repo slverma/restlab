@@ -11,6 +11,14 @@ export class RequestEditorProvider {
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
+  // Update panel title for an open request editor
+  public static updatePanelTitle(requestId: string, newTitle: string): void {
+    const panel = RequestEditorProvider.openPanels.get(requestId);
+    if (panel) {
+      panel.title = `🔗 ${newTitle}`;
+    }
+  }
+
   public static openRequestEditor(
     context: vscode.ExtensionContext,
     requestId: string,
