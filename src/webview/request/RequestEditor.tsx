@@ -1,28 +1,28 @@
 import React from "react";
-import { useRequestContext, RequestContextProvider } from "./RequestContext";
-import { RequestEditorProps } from "../types/internal.types";
+import BeautifyIcon from "../components/icons/BeautifyIcon";
+import CodeIcon from "../components/icons/CodeIcon";
+import CopyIcon from "../components/icons/CopyIcon";
+import DownloadIcon from "../components/icons/DownloadIcon";
+import PencilIcon from "../components/icons/PencilIcon";
+import SaveIcon from "../components/icons/SaveIcon";
+import SendIcon from "../components/icons/SendIcon";
+import SplitIcon from "../components/icons/SplitIcon";
+import WarningIcon from "../components/icons/WarningIcon";
+import Tooltip from "../components/Tooltip";
+import { CONTENT_TYPES, HTTP_METHODS, METHODS_WITH_BODY } from "../config";
 import {
-  isFormContentType,
   formatJson,
-  getStatusColor,
-  getFileExtension,
   formatSize,
   getBodyPlaceholder,
+  getFileExtension,
+  getStatusColor,
+  isFormContentType,
 } from "../helpers/helper";
-import FormFieldEditor from "./FormFieldEditor";
-import SendIcon from "../components/icons/SendIcon";
-import SaveIcon from "../components/icons/SaveIcon";
-import CodeIcon from "../components/icons/CodeIcon";
-import SplitIcon from "../components/icons/SplitIcon";
-import { CONTENT_TYPES, HTTP_METHODS, METHODS_WITH_BODY } from "../config";
-import HeaderTab from "./HeaderTab";
+import { RequestEditorProps } from "../types/internal.types";
 import BodyEditor from "./BodyEditor";
-import DownloadIcon from "../components/icons/DownloadIcon";
-import WarningIcon from "../components/icons/WarningIcon";
-import BeautifyIcon from "../components/icons/BeautifyIcon";
-import CopyIcon from "../components/icons/CopyIcon";
-import Tooltip from "../components/Tooltip";
-import PencilIcon from "../components/icons/PencilIcon";
+import FormFieldEditor from "./FormFieldEditor";
+import HeaderTab from "./HeaderTab";
+import { RequestContextProvider, useRequestContext } from "./RequestContext";
 
 const RequestEditorContent: React.FC = () => {
   const {
@@ -67,6 +67,13 @@ const RequestEditorContent: React.FC = () => {
               activeTab === "body"
             ) {
               setActiveTab("headers");
+            }
+            // Switch to body tab when changing to a method that supports body
+            if (
+              METHODS_WITH_BODY.includes(e.target.value) &&
+              activeTab !== "body"
+            ) {
+              setActiveTab("body");
             }
           }}
           className={`method-select method-${config.method.toLowerCase()}`}
