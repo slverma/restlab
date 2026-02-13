@@ -1,14 +1,24 @@
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import React, {
   createContext,
-  useContext,
-  useState,
-  useRef,
-  useMemo,
-  useCallback,
-  useEffect,
   ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import { METHODS_WITH_BODY } from "../config";
+import { generateCurlCommand } from "../helpers/curl";
+import {
+  formatJson,
+  formDataToBody,
+  getEditorLanguageFromContentType,
+  hasFileFields,
+  isFormContentType,
+  stripJsonComments,
+} from "../helpers/helper";
 import {
   FolderConfig,
   FormDataItem,
@@ -16,15 +26,6 @@ import {
   RequestEditorProps,
   ResponseData,
 } from "../types/internal.types";
-import { generateCurlCommand } from "../helpers/curl";
-import {
-  formDataToBody,
-  hasFileFields,
-  isFormContentType,
-  stripJsonComments,
-  formatJson,
-  getEditorLanguageFromContentType,
-} from "../helpers/helper";
 
 declare function acquireVsCodeApi(): {
   postMessage: (message: unknown) => void;
@@ -224,6 +225,9 @@ export const RequestContextProvider: React.FC<RequestContextProviderProps> = ({
           setConfig(message.config);
           setFolderConfig(message.folderConfig || {});
           setIsSaved(true);
+          if (METHODS_WITH_BODY.includes(message.config.method)) {
+            setActiveTab("body");
+          }
           break;
         case "folderConfigUpdated":
           setFolderConfig(message.folderConfig || {});
